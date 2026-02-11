@@ -1,7 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import {
-  registerUser,
   getAllUsers,
   getUserById,
   getCurrentUser,
@@ -18,9 +17,6 @@ const router = express.Router();
  * User Routes
  * Base path: /api/users
  */
-
-// Public routes
-router.post("/register", registerUser); // Register new user
 
 // Protected routes
 router.get("/", authMiddleware, getAllUsers); // Get all users (requires auth)

@@ -1,18 +1,23 @@
+import dotenv from "dotenv";
+import mongoose from "mongoose";
 import app from "./src/app.js";
 
+dotenv.config();
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+const MONGO_URI = process.env.MONGO_URI;
 
-require("dotenv").config();
+// Connect to MongoDB
+if (MONGO_URI) {
+  mongoose
+    .connect(MONGO_URI)
+    .then(() => console.log("Connected to MongoDB"))
+    .catch((err) => console.error("MongoDB connection error:", err));
+} else {
+  console.warn("MONGO_URI not set in environment variables");
+}
 
-
-
-const dbConnect = require("./DBConnection.js");
-
-const ExpressApp = require('./App.js');
-
-dbConnect.connect();
-
-ExpressApp.app.listen(process.env.PORT,process.env.HOSTNAME,function(){ // Listen to client requests in hostname:port
-    console.log(`Server Running on ${process.env.HOSTNAME}:${process.env.PORT}...`);
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

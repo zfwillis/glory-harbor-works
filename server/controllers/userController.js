@@ -176,7 +176,7 @@ export const updateUser = async (req, res) => {
         ...(status && { status }),
         ...(availability && { availability })
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedUser) {
@@ -334,7 +334,7 @@ export const changeUserRole = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       id,
       { role },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedUser) {
