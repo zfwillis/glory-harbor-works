@@ -39,7 +39,7 @@ export default function Contact() {
   return (
     <div className="bg-white">
       {/* Page Header */}
-      <section className="bg-blue-600 text-white py-12 px-4">
+      <section className="bg-[#15436b] text-white py-12 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
           <p className="text-lg">We'd love to hear from you. Get in touch with Glory Harbor Works today.</p>
@@ -56,7 +56,7 @@ export default function Contact() {
                 <FaPhone className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Call Us</h3>
-              <p className="text-gray-600">(410) 555-0123</p>
+              <p className="text-gray-600">(667) 310-1970</p>
             </div>
 
             {/* Email */}
@@ -65,7 +65,7 @@ export default function Contact() {
                 <FaEnvelope className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Email</h3>
-              <p className="text-gray-600">info@gloryharbor.com</p>
+              <p className="text-gray-600">stgciglory@gmail.com</p>
             </div>
 
             {/* Address */}
@@ -74,7 +74,7 @@ export default function Contact() {
                 <FaMapMarkerAlt className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Visit</h3>
-              <p className="text-gray-600">123 Harbor Street<br />Baltimore, MD 21201</p>
+              <p className="text-gray-600">9004 Harford Road<br />Parkville, MD 21234</p>
             </div>
 
             {/* Hours */}
@@ -83,7 +83,7 @@ export default function Contact() {
                 <FaClock className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Hours</h3>
-              <p className="text-gray-600">Sun: 10:00 AM<br />Mon-Fri: 9:00 AM - 5:00 PM</p>
+              <p className="text-gray-600">Sun: 10:00 AM<br />Tues: 7:00 PM - 9:00 PM<br />Fri: 7:00 PM - 9:00 PM</p>
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function Contact() {
       {/* Contact Form */}
       <section className="bg-gray-50 py-16 px-4">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center">Send Us a Message</h2>
+          <h2 className="text-3xl font-bold mb-8 text-center">Send Message</h2>
 
           {submitted && (
             <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
@@ -173,7 +173,7 @@ export default function Contact() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="w-full bg-[#15436b] text-white py-3.5 font-semibold uppercase tracking-wide text-sm border-2 border-[#15436b] hover:bg-[#E7A027] hover:border-[#E7A027] transition-all duration-300"
             >
               Send Message
             </button>
