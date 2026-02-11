@@ -1,56 +1,129 @@
 import { Link } from 'react-router-dom'
-import { FaPlay, FaPhone, FaEnvelope } from 'react-icons/fa'
+import { FaPlay, FaPhone, FaEnvelope, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
+  // Carousel images - add your images to the public folder
+  const heroImages = [
+    '/hero-image.JPG',
+    '/hero-image-2.jpg',
+    '/hero-image-3.jpg',
+  ]
+
+  const [currentSlide, setCurrentSlide] = useState(0)
+
+  // Auto-advance carousel every 5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [heroImages.length])
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index)
+  }
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % heroImages.length)
+  }
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + heroImages.length) % heroImages.length)
+  }
+
   const sermons = [
     {
       id: 1,
-      title: "The Love of Christ",
-      pastor: "Pastor John",
-      date: "Feb 9, 2025",
+      title: "Benefits of Praying In Tongues (Part 2)",
+      pastor: "Pastor Victor Akinde",
+      date: "July 10, 2025",
       type: "video",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+      url: "https://www.youtube.com/embed/kFdr4v678dw"
     },
     {
       id: 2,
-      title: "Faith in the Storm",
-      pastor: "Pastor Sarah",
-      date: "Feb 2, 2025",
+      title: "Intimacy With The Holy Spirit",
+      pastor: "Pastor Victor Akinde",
+      date: "July 10, 2025",
       type: "video",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+      url: "https://www.youtube.com/embed/cRQYRSn0nq8"
     },
     {
       id: 3,
-      title: "Grace Abounding",
-      pastor: "Pastor Michael",
-      date: "Jan 26, 2025",
+      title: "Exercising Power and Authority Over Unclean Spirits",
+      pastor: "Pastor Victor Akinde",
+      date: "July 10, 2025",
       type: "video",
-      url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+      url: "https://www.youtube.com/embed/CvHQooGfIhw"
     }
   ]
 
   return (
     <div className="bg-white">
       {/* Hero Section - G1: View Landing Page */}
-      <section className="relative h-96 bg-cover bg-center" style={{
-        backgroundImage: 'url(https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1200&h=500&fit=crop)',
-      }}>
-        <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-          <div className="text-center text-white">
-            <h1 className="text-5xl font-bold mb-4">Glory Harbor Works</h1>
-            <p className="text-xl">A Harbor of Hope and Spiritual Growth</p>
+      <section className="relative h-96 overflow-hidden">
+        {/* Carousel Images */}
+        {heroImages.map((image, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              backgroundImage: `url(${image})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 75%',
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30 flex items-center justify-center">
+              <div className="text-center text-white">
+                <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">Welcome to Glory Harbor</h1>
+              </div>
+            </div>
           </div>
+        ))}
+
+        {/* Previous Button */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full transition z-10"
+          aria-label="Previous slide"
+        >
+          <FaChevronLeft />
+        </button>
+
+        {/* Next Button */}
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/30 hover:bg-white/50 text-white p-3 rounded-full transition z-10"
+          aria-label="Next slide"
+        >
+          <FaChevronRight />
+        </button>
+
+        {/* Dots Navigation */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {heroImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`w-3 h-3 rounded-full transition ${
+                index === currentSlide ? 'bg-white' : 'bg-white/50 hover:bg-white/75'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
       </section>
 
       {/* Mission Statement - G1 & G3: View Landing Page & Church Info */}
-      <section className="bg-blue-50 py-16 px-4">
+      <section className="bg-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6 text-blue-900">Our Mission</h2>
+          <h2 className="text-4xl font-bold mb-6 text-[#15436b]">Our Mission</h2>
           <p className="text-lg text-gray-700 mb-4">
-            Glory Harbor Works is committed to spreading the Gospel, building a loving community, 
-            and helping individuals discover their purpose in Christ. We welcome all seekers of faith 
-            and provide a welcoming space for spiritual growth.
+            Strong Tower Glorious Church International, Glory Harbor campus is a Pentecostal denomination located in Parkville, MD.
+We are sent to take the gospel of Jesus Christ throughout the whole world with supernatural demonstration of his power through teaching, preaching and discipleship.
           </p>
           <p className="text-lg text-gray-700">
             Our vision is to be a beacon of hope in our community, transforming lives through God's Word 
@@ -60,19 +133,24 @@ export default function Home() {
       </section>
 
       {/* Upcoming Events Section */}
-      <section className="bg-blue-600 text-white py-16 px-4">
+      <section className="bg-[#15436b] text-white py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold mb-8 text-center">UPCOMING EVENTS</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-blue-700 p-6 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white/10 p-6">
               <h3 className="text-xl font-semibold mb-2">Sunday Service</h3>
               <p className="text-sm mb-3">Every Sunday at 10:00 AM</p>
-              <p className="text-xs">Join us for worship, prayer, and fellowship.</p>
+              <p className="text-xs opacity-90">Join us for worship, prayer, and fellowship.</p>
             </div>
-            <div className="bg-blue-700 p-6 rounded-lg">
+            <div className="bg-white/10 p-6">
               <h3 className="text-xl font-semibold mb-2">Bible Study</h3>
-              <p className="text-sm mb-3">Wednesdays at 7:00 PM</p>
-              <p className="text-xs">Dive deeper into God's Word with our community.</p>
+              <p className="text-sm mb-3">Tuesdays at 7:00 PM</p>
+              <p className="text-xs opacity-90">Dive deeper into God's Word with our community.</p>
+            </div>
+            <div className="bg-white/10 p-6">
+              <h3 className="text-xl font-semibold mb-2">Prayer Meeting</h3>
+              <p className="text-sm mb-3">Fridays at 7:00 PM</p>
+              <p className="text-xs opacity-90">Join us for a time of prayer and spiritual growth.</p>
             </div>
           </div>
         </div>
@@ -81,8 +159,8 @@ export default function Home() {
       {/* Sermons Section - G2: Stream Sermons */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-4 text-center text-gray-900">Recent Sermons</h2>
-          <p className="text-center text-gray-600 mb-12">Watch and listen to our latest sermons</p>
+          <h2 className="text-4xl font-bold mb-4 text-center text-[#15436b]">Past Sermons</h2>
+          <p className="text-center text-gray-600 mb-12">Watch and listen to previous sermons</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             {sermons.map((sermon) => (
@@ -108,8 +186,8 @@ export default function Home() {
           </div>
 
           <div className="text-center">
-            <a href="https://www.youtube.com/@GloryHarborWorks" target="_blank" rel="noreferrer" 
-               className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition">
+            <a href="https://www.youtube.com/@gloryharbor" target="_blank" rel="noreferrer" 
+               className="inline-block bg-[#15436b] text-white px-8 py-3 rounded-lg hover:bg-[#E7A027] hover:text-white transition">
               View All Sermons on YouTube
             </a>
           </div>
@@ -117,98 +195,99 @@ export default function Home() {
       </section>
 
       {/* Church Info Cards - G3: View Church Info */}
-      <section className="py-16 px-4">
+      <section className="py-16 px-4 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">About Glory Harbor Works</h2>
+          <h2 className="text-4xl font-bold mb-12 text-center text-[#15436b]">About Glory Harbor</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* History */}
-            <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
-              <h3 className="text-2xl font-bold mb-3">Our History</h3>
-              <p className="text-gray-700">
-                Founded in 2015, Glory Harbor Works has grown from a small fellowship 
-                to a thriving church community dedicated to spreading Christ's love.
-              </p>
+            <div className="border-l-4 border-[#E7A027] bg-white shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 overflow-hidden">
+              <img 
+                src="/history-image.jpg" 
+                alt="Our History" 
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4 text-[#15436b]">Our History</h3>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  Founded in 2020, Glory Harbor is a thriving church community dedicated to spreading Christ's love.
+                </p>
+                <a href="#history" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                  Learn More →
+                </a>
+              </div>
             </div>
 
             {/* What We Believe */}
-            <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
-              <h3 className="text-2xl font-bold mb-3">What We Believe</h3>
-              <p className="text-gray-700">
-                We believe in the power of God's Word, the importance of community, 
-                and the transformative grace of Jesus Christ in our lives.
-              </p>
+            <div className="border-l-4 border-[#E7A027] bg-white shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 overflow-hidden">
+              <img 
+                src="/beliefs-image.jpg" 
+                alt="What We Believe" 
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4 text-[#15436b]">What We Believe</h3>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  We believe in the power of God's Word, the importance of community, 
+                  and the transformative grace of Jesus Christ in our lives.
+                </p>
+                <a href="#beliefs" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                  Learn More →
+                </a>
+              </div>
             </div>
 
             {/* Community */}
-            <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
-              <h3 className="text-2xl font-bold mb-3">Our Community</h3>
-              <p className="text-gray-700">
-                We serve our community through outreach programs, food banks, 
-                and support for those in need.
-              </p>
+            <div className="border-l-4 border-[#E7A027] bg-white shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 overflow-hidden">
+              <img 
+                src="/community-image.jpg" 
+                alt="Our Community" 
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4 text-[#15436b]">Our Community</h3>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  We are a loving family that genuinely cares for one another and our community. 
+                  Together, we support each other in faith and extend that love to those around us.
+                </p>
+                <a href="#community" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                  Learn More →
+                </a>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Contact Section - G5: Contact Church */}
-      <section className="bg-blue-600 text-white py-16 px-4">
+      <section className="bg-gradient-to-b from-gray-50 to-white py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">Get In Touch</h2>
+          <h2 className="text-4xl font-bold mb-12 text-center text-[#26262a]">Contact Us</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            {/* Phone */}
-            <div className="bg-blue-700 p-6 rounded-lg text-center">
-              <FaPhone className="text-4xl mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Call Us</h3>
-              <p className="text-sm">(410) 555-0123</p>
-              <p className="text-xs mt-2 opacity-75">Mon - Fri, 9AM - 5PM</p>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             {/* Email */}
-            <div className="bg-blue-700 p-6 rounded-lg text-center">
-              <FaEnvelope className="text-4xl mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Email Us</h3>
-              <p className="text-sm">info@gloryharbor.com</p>
-              <p className="text-xs mt-2 opacity-75">We'll reply within 24 hours</p>
+            <div className="bg-gradient-to-br from-[#15436b] to-[#15436b]/80 p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center">
+              <div className="bg-white/95 p-4 rounded-lg w-full text-center">
+                <h3 className="text-lg font-semibold mb-2 text-[#15436b]">Email</h3>
+                <p className="text-gray-700">stgciglory@gmail.com</p>
+              </div>
             </div>
 
             {/* Visit */}
-            <div className="bg-blue-700 p-6 rounded-lg text-center">
-              <h3 className="text-xl font-semibold mb-2">Visit Us</h3>
-              <p className="text-sm">123 Harbor Street</p>
-              <p className="text-sm">Baltimore, MD 21201</p>
-              <p className="text-xs mt-2 opacity-75">Sundays at 10:00 AM</p>
+            <div className="bg-gradient-to-br from-[#15436b] to-[#15436b]/80 p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center">
+              <div className="bg-white/95 p-4 rounded-lg w-full text-center">
+                <h3 className="text-lg font-semibold mb-2 text-[#15436b]">Visit</h3>
+                <p className="text-gray-700">9004 Harford Road</p>
+                <p className="text-gray-700">Parkville, MD 21234</p>
+                <p className="text-sm mt-3 text-gray-600">Sundays at 10:00 AM</p>
+              </div>
             </div>
           </div>
 
           <div className="text-center">
-            <Link to="/contact" className="inline-block bg-yellow-500 text-blue-900 px-8 py-3 rounded-lg font-semibold hover:bg-yellow-400 transition">
-              Send us a Message
+            <Link to="/contact" className="inline-block bg-[#15436b] text-white px-10 py-3.5 font-semibold uppercase tracking-wide text-sm border-2 border-[#15436b] hover:bg-[#E7A027] hover:border-[#E7A027] transition-all duration-300">
+              Send Message
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Social Media Section - G4: View Social Media */}
-      <section className="bg-gray-100 py-12 px-4">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-2xl font-bold mb-6">Follow Us On Social Media</h2>
-          <p className="text-gray-600 mb-8">Stay connected with Glory Harbor Works for daily inspiration and updates</p>
-          <div className="flex justify-center gap-8">
-            <a href="https://facebook.com/GloryHarborWorks" target="_blank" rel="noreferrer" 
-               className="text-3xl text-blue-600 hover:text-blue-800 transition">
-              f
-            </a>
-            <a href="https://instagram.com/GloryHarborWorks" target="_blank" rel="noreferrer"
-               className="text-3xl text-pink-600 hover:text-pink-800 transition">
-              📷
-            </a>
-            <a href="https://youtube.com/@GloryHarborWorks" target="_blank" rel="noreferrer"
-               className="text-3xl text-red-600 hover:text-red-800 transition">
-              ▶️
-            </a>
           </div>
         </div>
       </section>
