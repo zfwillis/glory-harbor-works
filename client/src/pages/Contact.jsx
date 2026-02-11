@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock } from 'react-icons/fa'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 export default function Contact() {
   const [formData, setFormData] = useState({
     name: '',
@@ -11,6 +13,8 @@ export default function Contact() {
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -18,22 +22,33 @@ export default function Contact() {
       ...prev,
       [name]: value
     }))
+    setError('')
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Here you would typically send the form data to a backend
-    console.log('Form submitted:', formData)
-    setSubmitted(true)
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      subject: '',
-      message: ''
-    })
-    // Reset success message after 5 seconds
-    setTimeout(() => setSubmitted(false), 5000)
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch(`${API_URL}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Failed to submit')
+
+      setSubmitted(true)
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
+      setTimeout(() => setSubmitted(false), 5000)
+    } catch (err) {
+      console.error('Contact submit error:', err)
+      setError(err.message || 'Error submitting form')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
