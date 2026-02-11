@@ -156,6 +156,17 @@ export const updateUser = async (req, res) => {
     const { id } = req.params;
     const { firstName, lastName, status, availability } = req.body;
 
+    // Authorization: only the owner or a pastor can update
+    const requesterId = req.userId;
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const requester = await User.findById(requesterId).select('role');
+    if (requesterId !== id && requester?.role !== 'pastor') {
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
+    }
+
     // Find and update user
     const updatedUser = await User.findByIdAndUpdate(
       id,
@@ -197,6 +208,17 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Authorization: only the owner or a pastor can delete
+    const requesterId = req.userId;
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const requester = await User.findById(requesterId).select('role');
+    if (requesterId !== id && requester?.role !== 'pastor') {
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
+    }
 
     const deletedUser = await User.findByIdAndDelete(id);
 

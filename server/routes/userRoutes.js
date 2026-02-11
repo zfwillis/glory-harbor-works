@@ -1,4 +1,5 @@
 import express from "express";
+import { authMiddleware } from "../middleware/auth.js";
 import {
   registerUser,
   getAllUsers,
@@ -21,16 +22,16 @@ const router = express.Router();
 // Public routes
 router.post("/register", registerUser); // Register new user
 
-// Protected routes (add auth middleware later)
-router.get("/", getAllUsers); // Get all users
-router.get("/me", getCurrentUser); // Get current user profile
-router.get("/email/:email", getUserByEmail); // Get user by email
-router.get("/role/:role", getUsersByRole); // Get users by role
-router.get("/:id", getUserById); // Get user by ID
+// Protected routes
+router.get("/", authMiddleware, getAllUsers); // Get all users (requires auth)
+router.get("/me", authMiddleware, getCurrentUser); // Get current user profile
+router.get("/email/:email", authMiddleware, getUserByEmail); // Get user by email
+router.get("/role/:role", authMiddleware, getUsersByRole); // Get users by role
+router.get("/:id", authMiddleware, getUserById); // Get user by ID
 
-router.put("/:id", updateUser); // Update user
-router.patch("/:id/role", changeUserRole); // Change user role
+router.put("/:id", authMiddleware, updateUser); // Update user (owner or pastor)
+router.patch("/:id/role", authMiddleware, changeUserRole); // Change user role (pastor only)
 
-router.delete("/:id", deleteUser); // Delete user
+router.delete("/:id", authMiddleware, deleteUser); // Delete user (owner or pastor)
 
 export default router;

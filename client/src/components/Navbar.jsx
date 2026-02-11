@@ -44,7 +44,7 @@ const Navbar = () => {
             <>
               <li className="flex items-center gap-2">
                 <FaUser className="text-sm" />
-                <span className="text-sm">{user?.firstName}</span>
+                <Link to="/profile" className="text-sm hover:text-[#E7A027]">{user?.firstName}</Link>
               </li>
               <li>
                 <button
@@ -112,7 +112,7 @@ const Navbar = () => {
               <>
                 <li className="flex items-center gap-2 pt-4 border-t border-gray-600">
                   <FaUser className="text-sm" />
-                  <span>{user?.firstName} {user?.lastName}</span>
+                  <Link to="/profile" onClick={() => setOpen(false)} className="text-base">{user?.firstName} {user?.lastName}</Link>
                 </li>
                 <li>
                   <button
