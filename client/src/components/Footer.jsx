@@ -6,15 +6,15 @@ const Footer = () => {
       <div className="max-w-6xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* About */}
-          <div>
-            <h3 className="text-lg font-bold mb-3">Glory Harbor Works</h3>
+          <div className="text-center">
+            <h3 className="text-lg font-bold mb-3">Strong Tower Glorious Church International - Glory Harbor Campus</h3>
             <p className="text-sm opacity-75">
               A welcoming community devoted to spreading the Gospel and spiritual growth.
             </p>
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="text-center">
             <h3 className="text-lg font-bold mb-3">Quick Links</h3>
             <ul className="text-sm space-y-2">
               <li><a href="/" className="opacity-75 hover:opacity-100 transition">Home</a></li>
@@ -25,18 +25,18 @@ const Footer = () => {
           </div>
 
           {/* Social Media */}
-          <div>
+          <div className="text-center">
             <h3 className="text-lg font-bold mb-3">Follow Us</h3>
-            <div className="flex gap-4 text-xl">
-              <a href="https://facebook.com/GloryHarborWorks" target="_blank" rel="noreferrer" 
+            <div className="flex gap-4 text-xl justify-center">
+              <a href="https://www.facebook.com/STGCIUSA/" target="_blank" rel="noreferrer" 
                  className="hover:text-[#E7A027] transition">
                 <FaFacebook />
               </a>
-              <a href="https://instagram.com/GloryHarborWorks" target="_blank" rel="noreferrer"
+              <a href="https://www.instagram.com/stgciusa/" target="_blank" rel="noreferrer"
                  className="hover:text-[#E7A027] transition">
                 <FaInstagram />
               </a>
-              <a href="https://youtube.com/@GloryHarborWorks" target="_blank" rel="noreferrer"
+              <a href="https://youtube.com/@gloryharbor" target="_blank" rel="noreferrer"
                  className="hover:text-[#E7A027] transition">
                 <FaYoutube />
               </a>
@@ -48,7 +48,7 @@ const Footer = () => {
 
         <div className="text-center text-sm opacity-75">
           <p>© {new Date().getFullYear()} Glory Harbor Works. All rights reserved.</p>
-          <p className="mt-2">Contact: info@gloryharbor.com | (410) 555-0123</p>
+          <p className="mt-2">Contact: stgciglory@gmail.com | (667) 310-1970</p>
         </div>
       </div>
     </footer>
