@@ -163,6 +163,12 @@ const Register = () => {
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#15436b] focus:border-transparent"
             >
+              <option value="member">Member</option>
+              <option value="leader">Leader</option>
+              <option value="pastor">Pastor</option>
+            </select>
+          </div>
+
           {/* Registration Code - only show for leader/pastor */}
           {(formData.role === "leader" || formData.role === "pastor") && (
             <div>
@@ -184,12 +190,6 @@ const Register = () => {
               </p>
             </div>
           )}
-
-              <option value="member">Member</option>
-              <option value="leader">Leader</option>
-              <option value="pastor">Pastor</option>
-            </select>
-          </div>
 
           <button
             type="submit"

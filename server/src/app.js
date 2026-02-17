@@ -7,8 +7,24 @@ import userRoutes from "../routes/userRoutes.js";
 const app = express();
 
 // Middleware
+const allowedOrigins = new Set([
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+]);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true
 }));
 app.use(express.json());
