@@ -37,6 +37,9 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-[#f7fff5] flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="flex justify-center mb-4">
+          <img src="/blacklogo.webp" alt="Glory Harbor Works logo" className="h-32 w-auto" />
+        </div>
         <h2 className="text-3xl font-bold text-[#15436b] mb-6 text-center">
           Login to Glory Harbor
         </h2>
