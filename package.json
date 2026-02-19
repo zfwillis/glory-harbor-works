@@ -1,5 +1,11 @@
 {
-  "dependencies": {
-    "mongodb": "^7.1.0"
-  }
+    "dependencies":  {
+                         "mongodb":  "^7.1.0"
+                     },
+    "scripts":  {
+                    "start":  "node server.js",
+                    "dev":  "node server.js",
+                    "start:api":  "node server/server.js",
+                    "start:client":  "npm run dev --prefix client"
+                }
 }
