@@ -8,11 +8,17 @@ import contactRoutes from "../routes/contactRoutes.js";
 const app = express();
 
 // Middleware
-const allowedOrigins = new Set([
-  process.env.CLIENT_URL,
-  "http://localhost:5173",
-  "http://localhost:5174",
-]);
+const allowedOrigins = new Set(
+  [process.env.CLIENT_URL, "http://127.0.0.1:5173", "http://localhost:5173"].filter(Boolean)
+);
+
+const isAllowedDevOrigin = (origin) => {
+  if (!origin) {
+    return true;
+  }
+
+  return /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+};
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -20,7 +26,7 @@ app.use(cors({
       return callback(null, true);
     }
 
-    if (allowedOrigins.has(origin)) {
+    if (allowedOrigins.has(origin) || isAllowedDevOrigin(origin)) {
       return callback(null, true);
     }
 
