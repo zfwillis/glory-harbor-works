@@ -1,4 +1,5 @@
 import Sermon from "../models/Sermon.js";
+import mongoose from "mongoose";
 
 const fallbackSermons = [
   {
@@ -33,8 +34,23 @@ const fallbackSermons = [
   },
 ];
 
-const contains = (value, query) =>
-  String(value || "").toLowerCase().includes(String(query || "").toLowerCase());
+const ensureFallbackSermons = async () => {
+  for (const item of fallbackSermons) {
+    const existing = await Sermon.findOne({
+      title: item.title,
+      speaker: item.speaker,
+      publishedAt: item.publishedAt,
+    }).select("_id");
+
+    if (!existing) {
+      await Sermon.create({
+        ...item,
+        likesCount: 0,
+        likedBy: [],
+      });
+    }
+  }
+};
 
 export const getSermons = async (req, res) => {
   try {
@@ -60,7 +76,7 @@ export const getSermons = async (req, res) => {
       ];
     }
 
-    const sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
+    let sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
     if (sermons.length > 0) {
       return res.status(200).json({
         success: true,
@@ -69,37 +85,88 @@ export const getSermons = async (req, res) => {
       });
     }
 
-    if (hasSearch) {
-      const filteredFallback = fallbackSermons.filter((sermon) => {
-        const matchQ =
-          !q ||
-          contains(sermon.title, q) ||
-          contains(sermon.speaker, q) ||
-          contains(sermon.topic, q) ||
-          contains(sermon.series, q);
-        const matchSpeaker = !speaker || contains(sermon.speaker, speaker);
-        const matchTopic = !topic || contains(sermon.topic, topic);
-        const matchSeries = !series || contains(sermon.series, series);
-        return matchQ && matchSpeaker && matchTopic && matchSeries;
-      });
+    const totalSermons = await Sermon.countDocuments();
+    if (totalSermons === 0) {
+      await ensureFallbackSermons();
+      sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
 
       return res.status(200).json({
         success: true,
-        count: filteredFallback.length,
-        sermons: filteredFallback,
+        count: sermons.length,
+        sermons,
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      count: fallbackSermons.length,
-      sermons: fallbackSermons,
-    });
+    if (hasSearch) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        sermons: [],
+      });
+    }
+
+    return res.status(200).json({ success: true, count: 0, sermons: [] });
   } catch (error) {
     console.error("Get sermons error:", error);
     return res.status(500).json({
       success: false,
       message: "Error fetching sermons",
+      error: error.message,
+    });
+  }
+};
+
+export const likeSermon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sermon id",
+      });
+    }
+
+    const sermon = await Sermon.findById(id);
+    if (!sermon) {
+      return res.status(404).json({
+        success: false,
+        message: "Sermon not found",
+      });
+    }
+
+    const alreadyLiked = sermon.likedBy.some((likedUserId) => likedUserId.toString() === userId);
+    if (alreadyLiked) {
+      return res.status(200).json({
+        success: true,
+        message: "Sermon already liked",
+        sermon: {
+          id: sermon._id,
+          likesCount: sermon.likesCount,
+          liked: true,
+        },
+      });
+    }
+
+    sermon.likedBy.push(userId);
+    sermon.likesCount = sermon.likedBy.length;
+    await sermon.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Sermon liked successfully",
+      sermon: {
+        id: sermon._id,
+        likesCount: sermon.likesCount,
+        liked: true,
+      },
+    });
+  } catch (error) {
+    console.error("Like sermon error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error liking sermon",
       error: error.message,
     });
   }

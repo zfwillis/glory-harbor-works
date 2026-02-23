@@ -1,8 +1,10 @@
 import express from "express";
-import { getSermons } from "../controllers/sermonController.js";
+import { getSermons, likeSermon } from "../controllers/sermonController.js";
+import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.get("/", getSermons);
+router.post("/:id/like", authMiddleware, likeSermon);
 
 export default router;

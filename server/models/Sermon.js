@@ -15,6 +15,7 @@ const sermonSchema = new mongoose.Schema({
   url: { type: String, required: true, trim: true },
   thumbnailUrl: { type: String, trim: true, default: "" },
   likesCount: { type: Number, default: 0 },
+  likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   publishedAt: { type: Date, default: Date.now },
 });
 

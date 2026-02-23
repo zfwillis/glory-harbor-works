@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -38,9 +39,11 @@ const toEmbedUrl = (url) => {
 };
 
 const SermonsHub = () => {
+  const { token, isAuthenticated } = useAuth();
   const [sermons, setSermons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [likeBusyById, setLikeBusyById] = useState({});
   const [filters, setFilters] = useState({
     speaker: "",
     topic: "",
@@ -113,6 +116,44 @@ const SermonsHub = () => {
     const cleared = { speaker: "", topic: "", series: "" };
     setFilters(cleared);
     await loadSermons(cleared);
+  };
+
+  const likeSermon = async (sermonId) => {
+    if (!sermonId) {
+      return;
+    }
+
+    if (!isAuthenticated || !token) {
+      setError("Please log in to like a sermon.");
+      return;
+    }
+
+    setLikeBusyById((prev) => ({ ...prev, [sermonId]: true }));
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/sermons/${sermonId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Could not like sermon");
+      }
+
+      setSermons((prev) =>
+        prev.map((sermon) =>
+          sermon._id === sermonId
+            ? { ...sermon, likesCount: data.sermon?.likesCount ?? sermon.likesCount, liked: true }
+            : sermon
+        )
+      );
+    } catch (err) {
+      setError(err.message || "Failed to like sermon");
+    } finally {
+      setLikeBusyById((prev) => ({ ...prev, [sermonId]: false }));
+    }
   };
 
   return (
@@ -214,6 +255,20 @@ const SermonsHub = () => {
                   {sermon.description && (
                     <p className="text-gray-700 text-sm mt-3">{sermon.description}</p>
                   )}
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={!sermon._id || sermon.liked || likeBusyById[sermon._id]}
+                      onClick={() => likeSermon(sermon._id)}
+                      className="px-3 py-1.5 rounded-lg border border-[#15436b] text-[#15436b] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#15436b] hover:text-white transition"
+                    >
+                      {sermon.liked ? "Liked" : likeBusyById[sermon._id] ? "Liking..." : "Like"}
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      {(sermon.likesCount || 0)} {(sermon.likesCount || 0) === 1 ? "like" : "likes"}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
