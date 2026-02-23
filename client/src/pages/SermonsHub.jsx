@@ -67,7 +67,9 @@ const SermonsHub = () => {
 
       const queryString = params.toString();
       const endpoint = queryString ? `${API_URL}/sermons?${queryString}` : `${API_URL}/sermons`;
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -151,6 +153,44 @@ const SermonsHub = () => {
       );
     } catch (err) {
       setError(err.message || "Failed to like sermon");
+    } finally {
+      setLikeBusyById((prev) => ({ ...prev, [sermonId]: false }));
+    }
+  };
+
+  const unlikeSermon = async (sermonId) => {
+    if (!sermonId) {
+      return;
+    }
+
+    if (!isAuthenticated || !token) {
+      setError("Please log in to unlike a sermon.");
+      return;
+    }
+
+    setLikeBusyById((prev) => ({ ...prev, [sermonId]: true }));
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/sermons/${sermonId}/like`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Could not unlike sermon");
+      }
+
+      setSermons((prev) =>
+        prev.map((sermon) =>
+          sermon._id === sermonId
+            ? { ...sermon, likesCount: data.sermon?.likesCount ?? sermon.likesCount, liked: false }
+            : sermon
+        )
+      );
+    } catch (err) {
+      setError(err.message || "Failed to unlike sermon");
     } finally {
       setLikeBusyById((prev) => ({ ...prev, [sermonId]: false }));
     }
@@ -259,11 +299,17 @@ const SermonsHub = () => {
                   <div className="mt-4 flex items-center gap-3">
                     <button
                       type="button"
-                      disabled={!sermon._id || sermon.liked || likeBusyById[sermon._id]}
-                      onClick={() => likeSermon(sermon._id)}
+                      disabled={!sermon._id || likeBusyById[sermon._id]}
+                      onClick={() => (sermon.liked ? unlikeSermon(sermon._id) : likeSermon(sermon._id))}
                       className="px-3 py-1.5 rounded-lg border border-[#15436b] text-[#15436b] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#15436b] hover:text-white transition"
                     >
-                      {sermon.liked ? "Liked" : likeBusyById[sermon._id] ? "Liking..." : "Like"}
+                      {likeBusyById[sermon._id]
+                        ? sermon.liked
+                          ? "Unliking..."
+                          : "Liking..."
+                        : sermon.liked
+                        ? "Unlike"
+                        : "Like"}
                     </button>
                     <span className="text-sm text-gray-600">
                       {(sermon.likesCount || 0)} {(sermon.likesCount || 0) === 1 ? "like" : "likes"}

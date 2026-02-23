@@ -17,6 +17,21 @@ export const authMiddleware = (req, res, next) => {
   }
 };
 
+export const optionalAuthMiddleware = (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    req.userId = decoded.id;
+    return next();
+  } catch (error) {
+    return next();
+  }
+};
+
 // Alias for authMiddleware
 export const protect = authMiddleware;
 

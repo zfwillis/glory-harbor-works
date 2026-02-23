@@ -78,10 +78,16 @@ export const getSermons = async (req, res) => {
 
     let sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
     if (sermons.length > 0) {
+      const sermonsWithLikeState = sermons.map((sermon) => ({
+        ...sermon,
+        liked: req.userId
+          ? (sermon.likedBy || []).some((likedUserId) => likedUserId.toString() === req.userId)
+          : false,
+      }));
       return res.status(200).json({
         success: true,
-        count: sermons.length,
-        sermons,
+        count: sermonsWithLikeState.length,
+        sermons: sermonsWithLikeState,
       });
     }
 
@@ -89,11 +95,17 @@ export const getSermons = async (req, res) => {
     if (totalSermons === 0) {
       await ensureFallbackSermons();
       sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
+      const sermonsWithLikeState = sermons.map((sermon) => ({
+        ...sermon,
+        liked: req.userId
+          ? (sermon.likedBy || []).some((likedUserId) => likedUserId.toString() === req.userId)
+          : false,
+      }));
 
       return res.status(200).json({
         success: true,
-        count: sermons.length,
-        sermons,
+        count: sermonsWithLikeState.length,
+        sermons: sermonsWithLikeState,
       });
     }
 
@@ -167,6 +179,49 @@ export const likeSermon = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error liking sermon",
+      error: error.message,
+    });
+  }
+};
+
+export const unlikeSermon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sermon id",
+      });
+    }
+
+    const sermon = await Sermon.findById(id);
+    if (!sermon) {
+      return res.status(404).json({
+        success: false,
+        message: "Sermon not found",
+      });
+    }
+
+    sermon.likedBy = sermon.likedBy.filter((likedUserId) => likedUserId.toString() !== userId);
+    sermon.likesCount = sermon.likedBy.length;
+    await sermon.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Sermon unliked successfully",
+      sermon: {
+        id: sermon._id,
+        likesCount: sermon.likesCount,
+        liked: false,
+      },
+    });
+  } catch (error) {
+    console.error("Unlike sermon error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error unliking sermon",
       error: error.message,
     });
   }
