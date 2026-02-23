@@ -186,6 +186,12 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
           </div>
 
           <div className="text-center">
+            <Link
+              to="/sermons"
+              className="inline-block bg-[#E7A027] text-white px-8 py-3 rounded-lg hover:bg-[#cf8a1f] transition mr-3"
+            >
+              Open Sermons Hub
+            </Link>
             <a href="https://www.youtube.com/@gloryharbor" target="_blank" rel="noreferrer" 
                className="inline-block bg-[#15436b] text-white px-8 py-3 rounded-lg hover:bg-[#E7A027] hover:text-white transition">
               View All Sermons on YouTube

@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "../routes/authRoutes.js";
 import userRoutes from "../routes/userRoutes.js";
 import contactRoutes from "../routes/contactRoutes.js";
+import sermonRoutes from "../routes/sermonRoutes.js";
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/sermons", sermonRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

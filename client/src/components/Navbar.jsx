@@ -38,6 +38,9 @@ const Navbar = () => {
           <li>
             <Link className="hover:text-[#E7A027]" to="/contact">Contact</Link>
           </li>
+          <li>
+            <Link className="hover:text-[#E7A027]" to="/sermons">Sermons</Link>
+          </li>
 
           {/* Auth Links */}
           {isAuthenticated ? (
@@ -106,6 +109,7 @@ const Navbar = () => {
             <li><Link to="/" onClick={() => setOpen(false)}>Home</Link></li>
             <li><Link to="/info" onClick={() => setOpen(false)}>Info</Link></li>
             <li><Link to="/contact" onClick={() => setOpen(false)}>Contact</Link></li>
+            <li><Link to="/sermons" onClick={() => setOpen(false)}>Sermons</Link></li>
 
             {/* Mobile Auth Links */}
             {isAuthenticated ? (

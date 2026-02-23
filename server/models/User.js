@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
 
     status: { type: String, enum: ["active", "inactive"], default: "active" },
 
-    // optional role-specific fields (add later as you build)
+    // optional role-specific fields 
     managesUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     availability: [{ day: String, start: String, end: String }]
   },
