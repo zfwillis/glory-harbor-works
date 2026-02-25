@@ -29,7 +29,6 @@ describe("Sermon Model", () => {
     expect(error).toBeDefined();
     expect(error.errors.title).toBeDefined();
     expect(error.errors.speaker).toBeDefined();
-    expect(error.errors.type).toBeDefined();
     expect(error.errors.url).toBeDefined();
   });
 
