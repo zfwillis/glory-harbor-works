@@ -1,5 +1,42 @@
 import Sermon from "../models/Sermon.js";
 import mongoose from "mongoose";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "..", "uploads");
+
+const getLocalUploadFilePathFromUrl = (thumbnailUrl = "") => {
+  if (!thumbnailUrl || typeof thumbnailUrl !== "string") {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(thumbnailUrl);
+    if (!parsed.pathname.startsWith("/uploads/")) {
+      return "";
+    }
+    return path.join(uploadsDir, path.basename(parsed.pathname));
+  } catch (error) {
+    if (thumbnailUrl.startsWith("/uploads/")) {
+      return path.join(uploadsDir, path.basename(thumbnailUrl));
+    }
+    return "";
+  }
+};
+
+const removeLocalUploadIfExists = (thumbnailUrl = "") => {
+  const localPath = getLocalUploadFilePathFromUrl(thumbnailUrl);
+  if (!localPath) {
+    return;
+  }
+
+  if (fs.existsSync(localPath)) {
+    fs.unlinkSync(localPath);
+  }
+};
 
 const fallbackSermons = [
   {
@@ -54,10 +91,11 @@ const ensureFallbackSermons = async () => {
 
 export const getSermons = async (req, res) => {
   try {
-    const { q, speaker, topic, series } = req.query;
-    const hasSearch = Boolean(q || speaker || topic || series);
+    const { q, speaker, topic, series, type } = req.query;
+    const hasSearch = Boolean(q || speaker || topic || series || type);
 
     const query = {};
+    const andConditions = [];
     if (speaker) {
       query.speaker = { $regex: speaker, $options: "i" };
     }
@@ -67,13 +105,31 @@ export const getSermons = async (req, res) => {
     if (series) {
       query.series = { $regex: series, $options: "i" };
     }
+
+    if (type === "video") {
+      andConditions.push({ type: "video" });
+      andConditions.push({ url: { $not: /soundcloud\.com|snd\.sc/i } });
+    }
+
+    if (type === "audio") {
+      andConditions.push({
+        $or: [{ type: "audio" }, { url: { $regex: /soundcloud\.com|snd\.sc/i } }],
+      });
+    }
+
     if (q) {
-      query.$or = [
+      andConditions.push({
+        $or: [
         { title: { $regex: q, $options: "i" } },
         { speaker: { $regex: q, $options: "i" } },
         { topic: { $regex: q, $options: "i" } },
         { series: { $regex: q, $options: "i" } },
-      ];
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     let sermons = await Sermon.find(query).sort({ publishedAt: -1 }).lean();
@@ -123,6 +179,203 @@ export const getSermons = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error fetching sermons",
+      error: error.message,
+    });
+  }
+};
+
+export const createSermon = async (req, res) => {
+  try {
+    const {
+      title,
+      speaker,
+      topic = "",
+      series = "",
+      description = "",
+      type,
+      url,
+      thumbnailUrl = "",
+      publishedAt,
+    } = req.body;
+    const fileThumbnailUrl = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : "";
+
+    if (!title || !speaker || !type || !url) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, speaker, type, and url are required",
+      });
+    }
+
+    if (!["video", "audio"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Type must be video or audio",
+      });
+    }
+
+    const createdSermon = await Sermon.create({
+      title,
+      speaker,
+      topic,
+      series,
+      description,
+      type,
+      url,
+      thumbnailUrl: fileThumbnailUrl || thumbnailUrl,
+      publishedAt: publishedAt || Date.now(),
+      likesCount: 0,
+      likedBy: [],
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Sermon uploaded successfully",
+      sermon: createdSermon,
+    });
+  } catch (error) {
+    console.error("Create sermon error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error uploading sermon",
+      error: error.message,
+    });
+  }
+};
+
+export const updateSermon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sermon id",
+      });
+    }
+
+    const {
+      title,
+      speaker,
+      topic,
+      series,
+      description,
+      type,
+      url,
+      thumbnailUrl,
+      publishedAt,
+      removeThumbnail,
+    } = req.body;
+    const fileThumbnailUrl = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : "";
+
+    if (!title || !speaker || !type || !url) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, speaker, type, and url are required",
+      });
+    }
+
+    if (!["video", "audio"].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: "Type must be video or audio",
+      });
+    }
+
+    const existingSermon = await Sermon.findById(id);
+    if (!existingSermon) {
+      return res.status(404).json({
+        success: false,
+        message: "Sermon not found",
+      });
+    }
+
+    const shouldRemoveThumbnail =
+      removeThumbnail === true || removeThumbnail === "true" || removeThumbnail === "1";
+
+    const updatePayload = {
+      title,
+      speaker,
+      topic: topic || "",
+      series: series || "",
+      description: description || "",
+      type,
+      url,
+      ...(publishedAt ? { publishedAt } : {}),
+    };
+
+    if (fileThumbnailUrl) {
+      updatePayload.thumbnailUrl = fileThumbnailUrl;
+    } else if (shouldRemoveThumbnail) {
+      updatePayload.thumbnailUrl = "";
+    } else if (typeof thumbnailUrl === "string") {
+      updatePayload.thumbnailUrl = thumbnailUrl;
+    }
+
+    const updatedSermon = await Sermon.findByIdAndUpdate(id, updatePayload, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (fileThumbnailUrl || shouldRemoveThumbnail) {
+      const oldThumbnailUrl = existingSermon.thumbnailUrl || "";
+      if (oldThumbnailUrl && oldThumbnailUrl !== updatedSermon.thumbnailUrl) {
+        removeLocalUploadIfExists(oldThumbnailUrl);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Sermon updated successfully",
+      sermon: updatedSermon,
+    });
+  } catch (error) {
+    console.error("Update sermon error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating sermon",
+      error: error.message,
+    });
+  }
+};
+
+export const deleteSermon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sermon id",
+      });
+    }
+
+    const deletedSermon = await Sermon.findByIdAndDelete(id);
+    if (!deletedSermon) {
+      return res.status(404).json({
+        success: false,
+        message: "Sermon not found",
+      });
+    }
+
+    if (deletedSermon.thumbnailUrl) {
+      removeLocalUploadIfExists(deletedSermon.thumbnailUrl);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Sermon deleted successfully",
+      sermon: {
+        id: deletedSermon._id,
+        title: deletedSermon.title,
+      },
+    });
+  } catch (error) {
+    console.error("Delete sermon error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting sermon",
       error: error.message,
     });
   }
