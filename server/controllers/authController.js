@@ -53,6 +53,8 @@ export const register = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        avatarUrl: user.avatarUrl,
+        status: user.status,
       },
     });
   } catch (error) {
@@ -95,6 +97,8 @@ export const login = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        avatarUrl: user.avatarUrl,
+        status: user.status,
       },
     });
   } catch (error) {
