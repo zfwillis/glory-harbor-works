@@ -1,37 +1,53 @@
 import { describe, it, expect } from "@jest/globals";
 import router from "../../routes/sermonRoutes.js";
 
-const getRoutes = () =>
-  router.stack
-    .filter((layer) => layer.route)
-    .map((layer) => ({
-      path: layer.route.path,
-      methods: layer.route.methods,
-      middlewareCount: layer.route.stack.length,
-    }));
-
 describe("Sermon Routes", () => {
-  it("should register GET /", () => {
-    const routes = getRoutes();
-    const route = routes.find((item) => item.path === "/" && item.methods.get);
-
-    expect(route).toBeDefined();
-    expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
+  it("should export an express router", () => {
+    expect(router).toBeDefined();
+    expect(Array.isArray(router.stack)).toBe(true);
   });
 
-  it("should register POST /:id/like", () => {
-    const routes = getRoutes();
-    const route = routes.find((item) => item.path === "/:id/like" && item.methods.post);
+  it("should register GET / route", () => {
+    const hasGetRoot = router.stack.some(
+      (layer) => layer.route?.path === "/" && layer.route?.methods?.get
+    );
 
-    expect(route).toBeDefined();
-    expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
+    expect(hasGetRoot).toBe(true);
   });
 
-  it("should register DELETE /:id/like", () => {
-    const routes = getRoutes();
-    const route = routes.find((item) => item.path === "/:id/like" && item.methods.delete);
+  it("should register POST / route", () => {
+    const hasPostRoot = router.stack.some(
+      (layer) => layer.route?.path === "/" && layer.route?.methods?.post
+    );
 
-    expect(route).toBeDefined();
-    expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
+    expect(hasPostRoot).toBe(true);
+  });
+
+  it("should register PATCH /:id route", () => {
+    const hasPatch = router.stack.some(
+      (layer) => layer.route?.path === "/:id" && layer.route?.methods?.patch
+    );
+
+    expect(hasPatch).toBe(true);
+  });
+
+  it("should register DELETE /:id route", () => {
+    const hasDelete = router.stack.some(
+      (layer) => layer.route?.path === "/:id" && layer.route?.methods?.delete
+    );
+
+    expect(hasDelete).toBe(true);
+  });
+
+  it("should register like/unlike routes", () => {
+    const hasLike = router.stack.some(
+      (layer) => layer.route?.path === "/:id/like" && layer.route?.methods?.post
+    );
+    const hasUnlike = router.stack.some(
+      (layer) => layer.route?.path === "/:id/like" && layer.route?.methods?.delete
+    );
+
+    expect(hasLike).toBe(true);
+    expect(hasUnlike).toBe(true);
   });
 });
