@@ -187,9 +187,12 @@ const SermonsHub = () => {
   };
 
   const handleUploadChange = (e) => {
+    const { name, value } = e.target;
+
     setUploadForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
+      ...(name === "url" && isSoundCloudUrl(value) ? { type: "audio" } : {}),
     }));
     setUploadError("");
     setUploadSuccess("");
