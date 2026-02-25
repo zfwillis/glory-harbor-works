@@ -1,4 +1,41 @@
 import User from "../models/User.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "..", "uploads");
+
+const getLocalUploadFilePathFromUrl = (url = "") => {
+  if (!url || typeof url !== "string") {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (!parsed.pathname.startsWith("/uploads/")) {
+      return "";
+    }
+    return path.join(uploadsDir, path.basename(parsed.pathname));
+  } catch (error) {
+    if (url.startsWith("/uploads/")) {
+      return path.join(uploadsDir, path.basename(url));
+    }
+    return "";
+  }
+};
+
+const removeLocalUploadIfExists = (url = "") => {
+  const localPath = getLocalUploadFilePathFromUrl(url);
+  if (!localPath) {
+    return;
+  }
+
+  if (fs.existsSync(localPath)) {
+    fs.unlinkSync(localPath);
+  }
+};
 
 /**
  * Create a new user account
@@ -240,6 +277,60 @@ export const deleteUser = async (req, res) => {
       success: false,
       message: "Error deleting user",
       error: error.message
+    });
+  }
+};
+
+/**
+ * Update user avatar
+ * PATCH /api/users/:id/avatar
+ */
+export const updateUserAvatar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.userId;
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (requesterId !== id) {
+      const requester = await User.findById(requesterId).select("role");
+      if (requester?.role !== "pastor") {
+        return res.status(403).json({ success: false, message: "Forbidden: insufficient permissions" });
+      }
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Image file is required" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const oldAvatarUrl = user.avatarUrl || "";
+    const newAvatarUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+    user.avatarUrl = newAvatarUrl;
+    await user.save();
+
+    if (oldAvatarUrl && oldAvatarUrl !== newAvatarUrl) {
+      removeLocalUploadIfExists(oldAvatarUrl);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating profile picture",
+      error: error.message,
     });
   }
 };

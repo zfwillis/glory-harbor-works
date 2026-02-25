@@ -5,11 +5,13 @@ import {
   getUserById,
   getCurrentUser,
   updateUser,
+  updateUserAvatar,
   deleteUser,
   getUsersByRole,
   getUserByEmail,
   changeUserRole
 } from "../controllers/userController.js";
+import { uploadUserAvatar } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -27,6 +29,7 @@ router.get("/:id", authMiddleware, getUserById); // Get user by ID
 
 router.put("/:id", authMiddleware, updateUser); // Update user (owner or pastor)
 router.patch("/:id/role", authMiddleware, changeUserRole); // Change user role (pastor only)
+router.patch("/:id/avatar", authMiddleware, uploadUserAvatar.single("image"), updateUserAvatar); // Upload profile picture
 
 router.delete("/:id", authMiddleware, deleteUser); // Delete user (owner or pastor)
 

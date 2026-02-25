@@ -1,6 +1,8 @@
 import express from "express";
 import {
+	addCommentToSermon,
 	createSermon,
+	deleteCommentFromSermon,
 	deleteSermon,
 	getSermons,
 	likeSermon,
@@ -16,6 +18,8 @@ router.get("/", optionalAuthMiddleware, getSermons);
 router.post("/", authMiddleware, authorize("leader", "pastor"), uploadSermonImage.single("image"), createSermon);
 router.patch("/:id", authMiddleware, authorize("leader", "pastor"), uploadSermonImage.single("image"), updateSermon);
 router.delete("/:id", authMiddleware, authorize("leader", "pastor"), deleteSermon);
+router.post("/:id/comments", authMiddleware, addCommentToSermon);
+router.delete("/:id/comments/:commentId", authMiddleware, deleteCommentFromSermon);
 router.post("/:id/like", authMiddleware, likeSermon);
 router.delete("/:id/like", authMiddleware, unlikeSermon);
 

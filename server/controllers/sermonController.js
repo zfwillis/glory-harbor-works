@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import User from "../models/User.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -378,6 +379,108 @@ export const deleteSermon = async (req, res) => {
       message: "Error deleting sermon",
       error: error.message,
     });
+  }
+};
+
+export const addCommentToSermon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    const requesterId = req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid sermon id" });
+    }
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: "Comment text is required" });
+    }
+
+    const [sermon, user] = await Promise.all([
+      Sermon.findById(id),
+      User.findById(requesterId).select("firstName lastName role avatarUrl"),
+    ]);
+
+    if (!sermon) {
+      return res.status(404).json({ success: false, message: "Sermon not found" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    sermon.comments.push({
+      userId: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      avatarUrl: user.avatarUrl || "",
+      text: text.trim(),
+    });
+
+    await sermon.save();
+    const createdComment = sermon.comments[sermon.comments.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: "Comment added",
+      comment: createdComment,
+    });
+  } catch (error) {
+    console.error("Add comment error:", error);
+    return res.status(500).json({ success: false, message: "Error adding comment", error: error.message });
+  }
+};
+
+export const deleteCommentFromSermon = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const requesterId = req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ success: false, message: "Invalid id" });
+    }
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const [sermon, requester] = await Promise.all([
+      Sermon.findById(id),
+      User.findById(requesterId).select("role"),
+    ]);
+
+    if (!sermon) {
+      return res.status(404).json({ success: false, message: "Sermon not found" });
+    }
+
+    if (!requester) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const comment = sermon.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: "Comment not found" });
+    }
+
+    const canModerate = requester.role === "leader" || requester.role === "pastor";
+    const isOwner = comment.userId?.toString() === requesterId;
+
+    if (!canModerate && !isOwner) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    comment.deleteOne();
+    await sermon.save();
+
+    return res.status(200).json({ success: true, message: "Comment deleted" });
+  } catch (error) {
+    console.error("Delete comment error:", error);
+    return res.status(500).json({ success: false, message: "Error deleting comment", error: error.message });
   }
 };
 

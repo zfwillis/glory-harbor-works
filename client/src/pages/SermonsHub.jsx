@@ -68,6 +68,9 @@ const SermonsHub = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [likeBusyById, setLikeBusyById] = useState({});
+  const [commentInputsById, setCommentInputsById] = useState({});
+  const [commentBusyById, setCommentBusyById] = useState({});
+  const [commentDeleteBusyById, setCommentDeleteBusyById] = useState({});
   const [uploading, setUploading] = useState(false);
   const [deletingById, setDeletingById] = useState({});
   const [uploadError, setUploadError] = useState("");
@@ -422,6 +425,93 @@ const SermonsHub = () => {
     }
   };
 
+  const handleCommentInputChange = (sermonId, value) => {
+    setCommentInputsById((prev) => ({ ...prev, [sermonId]: value }));
+  };
+
+  const addComment = async (sermonId) => {
+    const text = commentInputsById[sermonId]?.trim();
+    if (!text) {
+      return;
+    }
+
+    if (!isAuthenticated || !token) {
+      setError("Please log in to comment.");
+      return;
+    }
+
+    setCommentBusyById((prev) => ({ ...prev, [sermonId]: true }));
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/sermons/${sermonId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not add comment");
+      }
+
+      setSermons((prev) =>
+        prev.map((sermon) =>
+          sermon._id === sermonId
+            ? { ...sermon, comments: [...(sermon.comments || []), data.comment] }
+            : sermon
+        )
+      );
+      setCommentInputsById((prev) => ({ ...prev, [sermonId]: "" }));
+    } catch (err) {
+      setError(err.message || "Failed to add comment");
+    } finally {
+      setCommentBusyById((prev) => ({ ...prev, [sermonId]: false }));
+    }
+  };
+
+  const deleteComment = async (sermonId, commentId) => {
+    if (!isAuthenticated || !token) {
+      setError("Please log in to delete comments.");
+      return;
+    }
+
+    setCommentDeleteBusyById((prev) => ({ ...prev, [commentId]: true }));
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/sermons/${sermonId}/comments/${commentId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not delete comment");
+      }
+
+      setSermons((prev) =>
+        prev.map((sermon) =>
+          sermon._id === sermonId
+            ? {
+                ...sermon,
+                comments: (sermon.comments || []).filter((comment) => comment._id !== commentId),
+              }
+            : sermon
+        )
+      );
+    } catch (err) {
+      setError(err.message || "Failed to delete comment");
+    } finally {
+      setCommentDeleteBusyById((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f7fff5] px-4 py-10">
       <div className="max-w-5xl mx-auto">
@@ -697,6 +787,81 @@ const SermonsHub = () => {
                   {sermon.description && (
                     <p className="text-gray-700 text-sm mt-3">{sermon.description}</p>
                   )}
+
+                  <div className="mt-4 border-t pt-3">
+                    <h3 className="text-sm font-semibold text-[#15436b] mb-2">Comments</h3>
+
+                    <div className="space-y-2 mb-3">
+                      {(sermon.comments || []).length === 0 && (
+                        <p className="text-sm text-gray-500">No comments yet.</p>
+                      )}
+                      {(sermon.comments || []).map((comment) => {
+                        const canDeleteComment =
+                          user?.role === "leader" ||
+                          user?.role === "pastor" ||
+                          comment.userId?.toString?.() === (user?.id || user?._id);
+
+                        return (
+                          <div key={comment._id} className="bg-[#f3f7f5] border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2">
+                                {comment.avatarUrl ? (
+                                  <img
+                                    src={comment.avatarUrl}
+                                    alt={`${comment.firstName} ${comment.lastName}`}
+                                    className="w-8 h-8 rounded-full object-cover border"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center text-[10px] text-gray-600">
+                                    {(comment.firstName?.[0] || "")}
+                                    {(comment.lastName?.[0] || "")}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-700">
+                                    {comment.firstName} {comment.lastName}
+                                  </p>
+                                  <p className="text-sm text-gray-800">{comment.text}</p>
+                                </div>
+                              </div>
+
+                              {canDeleteComment && comment._id && (
+                                <button
+                                  type="button"
+                                  onClick={() => deleteComment(sermon._id, comment._id)}
+                                  disabled={commentDeleteBusyById[comment._id]}
+                                  className="text-xs px-2 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {commentDeleteBusyById[comment._id] ? "Deleting..." : "Delete"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {isAuthenticated ? (
+                      <div className="flex gap-2">
+                        <input
+                          value={commentInputsById[sermon._id] || ""}
+                          onChange={(e) => handleCommentInputChange(sermon._id, e.target.value)}
+                          placeholder="Write a comment..."
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#15436b]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addComment(sermon._id)}
+                          disabled={commentBusyById[sermon._id]}
+                          className="px-3 py-2 rounded-lg bg-[#15436b] text-white text-sm disabled:opacity-50"
+                        >
+                          {commentBusyById[sermon._id] ? "Posting..." : "Post"}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">Log in to post comments.</p>
+                    )}
+                  </div>
 
                   <div className="mt-4 flex items-center gap-3">
                     <button
