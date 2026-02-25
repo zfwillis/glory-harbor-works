@@ -10,6 +10,13 @@ export default function Home() {
     '/hero-image-3.jpg',
   ]
 
+  const getHeroImagePosition = (image) => {
+    if (image === '/hero-image.JPG') {
+      return 'center 65%'
+    }
+    return 'center 75%'
+  }
+
   const [currentSlide, setCurrentSlide] = useState(0)
 
   // Auto-advance carousel every 5 seconds
@@ -73,7 +80,7 @@ export default function Home() {
             style={{
               backgroundImage: `url(${image})`,
               backgroundSize: 'cover',
-              backgroundPosition: 'center 75%',
+              backgroundPosition: getHeroImagePosition(image),
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30 flex items-center justify-center">
@@ -218,9 +225,9 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
                 <p className="text-gray-700 leading-relaxed mb-4">
                   Founded in 2020, Glory Harbor is a thriving church community dedicated to spreading Christ's love.
                 </p>
-                <a href="#history" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                <Link to="/info#history" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
                   Learn More →
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -237,9 +244,9 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
                   We believe in the power of God's Word, the importance of community, 
                   and the transformative grace of Jesus Christ in our lives.
                 </p>
-                <a href="#beliefs" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                <Link to="/info#beliefs" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
                   Learn More →
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -256,9 +263,9 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
                   We are a loving family that genuinely cares for one another and our community. 
                   Together, we support each other in faith and extend that love to those around us.
                 </p>
-                <a href="#community" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
+                <Link to="/info#community" className="text-[#E7A027] font-semibold hover:text-[#15436b] transition">
                   Learn More →
-                </a>
+                </Link>
               </div>
             </div>
           </div>

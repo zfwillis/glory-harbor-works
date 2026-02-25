@@ -45,6 +45,9 @@ const Navbar = () => {
           {/* Auth Links */}
           {isAuthenticated ? (
             <>
+              <li>
+                <Link className="hover:text-[#E7A027]" to="/prayer-requests">Prayer Requests</Link>
+              </li>
               <li className="flex items-center gap-2">
                 <FaUser className="text-sm" />
                 <Link to="/profile" className="text-sm hover:text-[#E7A027]">{user?.firstName}</Link>
@@ -114,6 +117,9 @@ const Navbar = () => {
             {/* Mobile Auth Links */}
             {isAuthenticated ? (
               <>
+                <li>
+                  <Link to="/prayer-requests" onClick={() => setOpen(false)}>Prayer Requests</Link>
+                </li>
                 <li className="flex items-center gap-2 pt-4 border-t border-gray-600">
                   <FaUser className="text-sm" />
                   <Link to="/profile" onClick={() => setOpen(false)} className="text-base">{user?.firstName} {user?.lastName}</Link>
