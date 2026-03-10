@@ -9,27 +9,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, "..", "uploads");
 
-const getLocalUploadFilePathFromUrl = (thumbnailUrl = "") => {
-  if (!thumbnailUrl || typeof thumbnailUrl !== "string") {
+const getLocalUploadFilePathFromUrl = (fileUrl = "") => {
+  if (!fileUrl || typeof fileUrl !== "string") {
     return "";
   }
 
   try {
-    const parsed = new URL(thumbnailUrl);
+    const parsed = new URL(fileUrl);
     if (!parsed.pathname.startsWith("/uploads/")) {
       return "";
     }
     return path.join(uploadsDir, path.basename(parsed.pathname));
   } catch (error) {
-    if (thumbnailUrl.startsWith("/uploads/")) {
-      return path.join(uploadsDir, path.basename(thumbnailUrl));
+    if (fileUrl.startsWith("/uploads/")) {
+      return path.join(uploadsDir, path.basename(fileUrl));
     }
     return "";
   }
 };
 
-const removeLocalUploadIfExists = (thumbnailUrl = "") => {
-  const localPath = getLocalUploadFilePathFromUrl(thumbnailUrl);
+const removeLocalUploadIfExists = (fileUrl = "") => {
+  const localPath = getLocalUploadFilePathFromUrl(fileUrl);
   if (!localPath) {
     return;
   }
@@ -37,6 +37,30 @@ const removeLocalUploadIfExists = (thumbnailUrl = "") => {
   if (fs.existsSync(localPath)) {
     fs.unlinkSync(localPath);
   }
+};
+
+const inferSermonTypeFromMediaFile = (file) => {
+  if (!file?.mimetype) {
+    return "";
+  }
+
+  if (file.mimetype.startsWith("audio/")) {
+    return "audio";
+  }
+
+  if (file.mimetype.startsWith("video/")) {
+    return "video";
+  }
+
+  return "";
+};
+
+const removeUploadedFiles = (files = []) => {
+  files.forEach((file) => {
+    if (file?.filename) {
+      removeLocalUploadIfExists(`/uploads/${file.filename}`);
+    }
+  });
 };
 
 const fallbackSermons = [
@@ -198,18 +222,28 @@ export const createSermon = async (req, res) => {
       thumbnailUrl = "",
       publishedAt,
     } = req.body;
-    const fileThumbnailUrl = req.file
-      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+    const thumbnailFile = req.files?.image?.[0];
+    const mediaFile = req.files?.media?.[0];
+    const fileThumbnailUrl = thumbnailFile
+      ? `${req.protocol}://${req.get("host")}/uploads/${thumbnailFile.filename}`
       : "";
+    const uploadedMediaUrl = mediaFile
+      ? `${req.protocol}://${req.get("host")}/uploads/${mediaFile.filename}`
+      : "";
+    const inferredType = inferSermonTypeFromMediaFile(mediaFile);
+    const finalType = inferredType || type;
+    const finalUrl = uploadedMediaUrl || url;
 
-    if (!title || !speaker || !type || !url) {
+    if (!title || !speaker || !finalType || !finalUrl) {
+      removeUploadedFiles([thumbnailFile, mediaFile]);
       return res.status(400).json({
         success: false,
-        message: "Title, speaker, type, and url are required",
+        message: "Title, speaker, type, and either a media url or media file are required",
       });
     }
 
-    if (!["video", "audio"].includes(type)) {
+    if (!["video", "audio"].includes(finalType)) {
+      removeUploadedFiles([thumbnailFile, mediaFile]);
       return res.status(400).json({
         success: false,
         message: "Type must be video or audio",
@@ -222,8 +256,8 @@ export const createSermon = async (req, res) => {
       topic,
       series,
       description,
-      type,
-      url,
+      type: finalType,
+      url: finalUrl,
       thumbnailUrl: fileThumbnailUrl || thumbnailUrl,
       publishedAt: publishedAt || Date.now(),
       likesCount: 0,
@@ -236,6 +270,7 @@ export const createSermon = async (req, res) => {
       sermon: createdSermon,
     });
   } catch (error) {
+    removeUploadedFiles([req.files?.image?.[0], req.files?.media?.[0]]);
     console.error("Create sermon error:", error);
     return res.status(500).json({
       success: false,
@@ -267,18 +302,28 @@ export const updateSermon = async (req, res) => {
       publishedAt,
       removeThumbnail,
     } = req.body;
-    const fileThumbnailUrl = req.file
-      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+    const thumbnailFile = req.files?.image?.[0];
+    const mediaFile = req.files?.media?.[0];
+    const fileThumbnailUrl = thumbnailFile
+      ? `${req.protocol}://${req.get("host")}/uploads/${thumbnailFile.filename}`
       : "";
+    const uploadedMediaUrl = mediaFile
+      ? `${req.protocol}://${req.get("host")}/uploads/${mediaFile.filename}`
+      : "";
+    const inferredType = inferSermonTypeFromMediaFile(mediaFile);
+    const finalType = inferredType || type;
+    const finalUrl = uploadedMediaUrl || url;
 
-    if (!title || !speaker || !type || !url) {
+    if (!title || !speaker || !finalType || !finalUrl) {
+      removeUploadedFiles([thumbnailFile, mediaFile]);
       return res.status(400).json({
         success: false,
-        message: "Title, speaker, type, and url are required",
+        message: "Title, speaker, type, and either a media url or media file are required",
       });
     }
 
-    if (!["video", "audio"].includes(type)) {
+    if (!["video", "audio"].includes(finalType)) {
+      removeUploadedFiles([thumbnailFile, mediaFile]);
       return res.status(400).json({
         success: false,
         message: "Type must be video or audio",
@@ -287,6 +332,7 @@ export const updateSermon = async (req, res) => {
 
     const existingSermon = await Sermon.findById(id);
     if (!existingSermon) {
+      removeUploadedFiles([thumbnailFile, mediaFile]);
       return res.status(404).json({
         success: false,
         message: "Sermon not found",
@@ -302,8 +348,8 @@ export const updateSermon = async (req, res) => {
       topic: topic || "",
       series: series || "",
       description: description || "",
-      type,
-      url,
+      type: finalType,
+      url: finalUrl,
       ...(publishedAt ? { publishedAt } : {}),
     };
 
@@ -327,12 +373,17 @@ export const updateSermon = async (req, res) => {
       }
     }
 
+    if (uploadedMediaUrl && existingSermon.url && existingSermon.url !== updatedSermon.url) {
+      removeLocalUploadIfExists(existingSermon.url);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Sermon updated successfully",
       sermon: updatedSermon,
     });
   } catch (error) {
+    removeUploadedFiles([req.files?.image?.[0], req.files?.media?.[0]]);
     console.error("Update sermon error:", error);
     return res.status(500).json({
       success: false,
@@ -362,6 +413,9 @@ export const deleteSermon = async (req, res) => {
 
     if (deletedSermon.thumbnailUrl) {
       removeLocalUploadIfExists(deletedSermon.thumbnailUrl);
+    }
+    if (deletedSermon.url) {
+      removeLocalUploadIfExists(deletedSermon.url);
     }
 
     return res.status(200).json({

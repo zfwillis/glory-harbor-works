@@ -38,6 +38,14 @@ const toEmbedUrl = (url) => {
   return url;
 };
 
+const isIframeVideoEmbedUrl = (url) => {
+  if (!url) {
+    return false;
+  }
+
+  return /youtube\.com\/embed|player\.vimeo\.com\/video/i.test(url);
+};
+
 const isSoundCloudUrl = (url) => {
   if (!url) {
     return false;
@@ -77,6 +85,7 @@ const SermonsHub = () => {
   const [uploadSuccess, setUploadSuccess] = useState("");
   const [editingSermonId, setEditingSermonId] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [mediaFile, setMediaFile] = useState(null);
   const [removeExistingThumbnail, setRemoveExistingThumbnail] = useState(false);
   const [showManagePanel, setShowManagePanel] = useState(false);
   const [uploadForm, setUploadForm] = useState({
@@ -109,6 +118,7 @@ const SermonsHub = () => {
       thumbnailUrl: "",
     });
     setThumbnailFile(null);
+    setMediaFile(null);
     setRemoveExistingThumbnail(false);
     setEditingSermonId(null);
   };
@@ -210,6 +220,20 @@ const SermonsHub = () => {
     setUploadSuccess("");
   };
 
+  const handleMediaFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setMediaFile(file);
+
+    if (file?.type?.startsWith("audio/")) {
+      setUploadForm((prev) => ({ ...prev, type: "audio" }));
+    } else if (file?.type?.startsWith("video/")) {
+      setUploadForm((prev) => ({ ...prev, type: "video" }));
+    }
+
+    setUploadError("");
+    setUploadSuccess("");
+  };
+
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
 
@@ -239,11 +263,14 @@ const SermonsHub = () => {
       formData.append("series", uploadForm.series || "");
       formData.append("description", uploadForm.description || "");
       formData.append("type", uploadForm.type);
-      formData.append("url", uploadForm.url);
+      formData.append("url", uploadForm.url || "");
       formData.append("thumbnailUrl", uploadForm.thumbnailUrl || "");
       formData.append("removeThumbnail", removeExistingThumbnail ? "true" : "false");
       if (thumbnailFile) {
         formData.append("image", thumbnailFile);
+      }
+      if (mediaFile) {
+        formData.append("media", mediaFile);
       }
 
       const response = await fetch(endpoint, {
@@ -286,6 +313,7 @@ const SermonsHub = () => {
       thumbnailUrl: sermon.thumbnailUrl || "",
     });
     setThumbnailFile(null);
+    setMediaFile(null);
     setRemoveExistingThumbnail(false);
     setUploadError("");
     setUploadSuccess("");
@@ -533,7 +561,7 @@ const SermonsHub = () => {
             ) : (
               <form onSubmit={handleUploadSubmit} className="bg-white border border-[#d9e6df] rounded-2xl p-4">
             <h2 className="text-xl font-semibold text-[#15436b] mb-3">
-              {editingSermonId ? "Edit Sermon" : "Upload Sermon (URL)"}
+              {editingSermonId ? "Edit Sermon" : "Upload Sermon"}
             </h2>
 
             {uploadError && (
@@ -577,8 +605,8 @@ const SermonsHub = () => {
                 name="url"
                 value={uploadForm.url}
                 onChange={handleUploadChange}
-                placeholder="Media URL (YouTube/audio link)"
-                required
+                placeholder="Media URL (optional if uploading a file)"
+                required={!mediaFile}
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
               />
               <input
@@ -598,6 +626,18 @@ const SermonsHub = () => {
             </div>
 
             <div className="mt-3 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Media File (video/audio, optional)</label>
+                <input
+                  type="file"
+                  accept="video/*,audio/*"
+                  onChange={handleMediaFileChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
+                />
+                {mediaFile && (
+                  <p className="text-xs text-gray-500 mt-1">Selected media: {mediaFile.name}</p>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Image File (optional)</label>
                 <input
@@ -760,15 +800,24 @@ const SermonsHub = () => {
                       />
                     </div>
                   ) : sermon.type === "video" ? (
-                    <div className="aspect-video overflow-hidden rounded-xl border border-gray-200">
-                      <iframe
-                        src={sermon.embedUrl}
-                        title={sermon.title}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
+                    isIframeVideoEmbedUrl(sermon.embedUrl) ? (
+                      <div className="aspect-video overflow-hidden rounded-xl border border-gray-200">
+                        <iframe
+                          src={sermon.embedUrl}
+                          title={sermon.title}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <div className="bg-[#f3f7f5] rounded-xl p-3 border border-gray-200">
+                        <video controls className="w-full rounded-lg">
+                          <source src={sermon.url} />
+                          Your browser does not support video playback.
+                        </video>
+                      </div>
+                    )
                   ) : (
                     <div className="bg-[#f3f7f5] rounded-xl p-3 border border-gray-200">
                       <audio controls className="w-full">
