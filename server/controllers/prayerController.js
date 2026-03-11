@@ -82,3 +82,35 @@ export const updatePrayerRequest = async (req, res) => {
     });
   }
 };
+
+export const deletePrayerRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid prayer request id" });
+    }
+
+    const existingPrayer = await Prayer.findById(id);
+    if (!existingPrayer) {
+      return res.status(404).json({ message: "Prayer request not found" });
+    }
+
+    if (!existingPrayer.createdBy || existingPrayer.createdBy.toString() !== req.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await existingPrayer.deleteOne();
+
+    return res.status(200).json({
+      message: "Prayer request deleted successfully",
+      id,
+    });
+  } catch (error) {
+    console.error("Delete prayer request error:", error);
+    return res.status(500).json({
+      message: "Failed to delete prayer request",
+      error: error.message,
+    });
+  }
+};

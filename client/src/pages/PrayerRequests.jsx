@@ -13,6 +13,7 @@ export default function PrayerRequests() {
   const [editingRequestId, setEditingRequestId] = useState("");
   const [editText, setEditText] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [deletingRequestId, setDeletingRequestId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -154,6 +155,41 @@ export default function PrayerRequests() {
     }
   };
 
+  const deleteRequest = async (requestId) => {
+    const shouldDelete = window.confirm("Are you sure you want to delete this prayer request?");
+    if (!shouldDelete) {
+      return;
+    }
+
+    try {
+      setDeletingRequestId(requestId);
+      setError("");
+      setMessage("");
+
+      const response = await fetch(`${API_URL}/prayers/${requestId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not delete prayer request");
+      }
+
+      setRequests((prev) => prev.filter((item) => item._id !== requestId));
+      if (editingRequestId === requestId) {
+        cancelEditingRequest();
+      }
+      setMessage("Prayer request deleted successfully.");
+    } catch (err) {
+      setError(err.message || "Failed to delete prayer request.");
+    } finally {
+      setDeletingRequestId("");
+    }
+  };
+
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-bold text-[#15436b]">Prayer Requests</h1>
@@ -257,13 +293,24 @@ export default function PrayerRequests() {
                 ) : (
                   <div>
                     <p className="text-gray-800 whitespace-pre-wrap">{request.text}</p>
-                    <button
-                      type="button"
-                      onClick={() => startEditingRequest(request)}
-                      className="mt-3 rounded-lg border border-[#15436b] px-3 py-1.5 text-sm font-semibold text-[#15436b] transition hover:bg-[#eaf3fb]"
-                    >
-                      Edit Request
-                    </button>
+                    <div className="mt-3 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditingRequest(request)}
+                        disabled={deletingRequestId === request._id}
+                        className="rounded-lg border border-[#15436b] px-3 py-1.5 text-sm font-semibold text-[#15436b] transition hover:bg-[#eaf3fb] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        Edit Request
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteRequest(request._id)}
+                        disabled={deletingRequestId === request._id}
+                        className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {deletingRequestId === request._id ? "Deleting..." : "Delete Request"}
+                      </button>
+                    </div>
                   </div>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
