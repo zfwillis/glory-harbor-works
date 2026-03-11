@@ -7,6 +7,7 @@ import authRoutes from "../routes/authRoutes.js";
 import userRoutes from "../routes/userRoutes.js";
 import contactRoutes from "../routes/contactRoutes.js";
 import sermonRoutes from "../routes/sermonRoutes.js";
+import prayerRoutes from "../routes/prayerRoutes.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +50,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/sermons", sermonRoutes);
+app.use("/api/prayers", prayerRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

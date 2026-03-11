@@ -1,10 +1,115 @@
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 export default function PrayerRequests() {
+  const { token } = useAuth();
+  const [text, setText] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage("");
+    setError("");
+
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      setError("Please enter your prayer request.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await fetch(`${API_URL}/prayers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          text: trimmedText,
+          isAnonymous,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not submit prayer request");
+      }
+
+      setMessage("Prayer request submitted successfully.");
+      setText("");
+      setIsAnonymous(false);
+    } catch (err) {
+      setError(err.message || "Failed to submit prayer request.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <section className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="text-3xl font-bold">Prayer Requests</h1>
-      <p className="mt-4 text-base">
-        Submit and view prayer requests here.
+    <section className="mx-auto max-w-3xl px-4 py-12">
+      <h1 className="text-3xl font-bold text-[#15436b]">Prayer Requests</h1>
+      <p className="mt-3 text-gray-700">
+        Share your prayer need and our team will stand with you in prayer.
       </p>
+
+      <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">Submit Prayer Request</h2>
+
+        {message && (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">
+            {message}
+          </div>
+        )}
+        {error && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div>
+            <label htmlFor="prayer-text" className="mb-1 block text-sm font-medium text-gray-700">
+              Prayer Request
+            </label>
+            <textarea
+              id="prayer-text"
+              rows={6}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type your prayer request here..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
+              maxLength={2000}
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">{text.length}/2000 characters</p>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-[#15436b] focus:ring-[#15436b]"
+            />
+            Submit anonymously
+          </label>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-lg bg-[#15436b] px-5 py-2.5 font-semibold text-white transition hover:bg-[#1b5385] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {submitting ? "Submitting..." : "Submit Request"}
+          </button>
+        </form>
+      </div>
     </section>
-  )
+  );
 }
