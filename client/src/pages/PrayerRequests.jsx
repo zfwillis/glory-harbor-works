@@ -10,6 +10,9 @@ export default function PrayerRequests() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [requests, setRequests] = useState([]);
+  const [editingRequestId, setEditingRequestId] = useState("");
+  const [editText, setEditText] = useState("");
+  const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -100,6 +103,57 @@ export default function PrayerRequests() {
     }
   };
 
+  const startEditingRequest = (request) => {
+    setError("");
+    setMessage("");
+    setEditingRequestId(request._id);
+    setEditText(request.text || "");
+  };
+
+  const cancelEditingRequest = () => {
+    setEditingRequestId("");
+    setEditText("");
+  };
+
+  const saveUpdatedRequest = async (requestId) => {
+    const trimmedText = editText.trim();
+    if (!trimmedText) {
+      setError("Please enter your prayer request.");
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      setError("");
+      setMessage("");
+
+      const response = await fetch(`${API_URL}/prayers/${requestId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text: trimmedText }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not update prayer request");
+      }
+
+      setRequests((prev) =>
+        prev.map((item) => (item._id === requestId ? { ...item, ...data.prayer } : item))
+      );
+      setMessage("Prayer request updated successfully.");
+      setEditingRequestId("");
+      setEditText("");
+    } catch (err) {
+      setError(err.message || "Failed to update prayer request.");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <section className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-bold text-[#15436b]">Prayer Requests</h1>
@@ -172,7 +226,46 @@ export default function PrayerRequests() {
           <div className="mt-4 space-y-3">
             {requests.map((request) => (
               <article key={request._id} className="rounded-lg border border-gray-200 bg-[#f8fbfd] p-4">
-                <p className="text-gray-800 whitespace-pre-wrap">{request.text}</p>
+                {editingRequestId === request._id ? (
+                  <div>
+                    <textarea
+                      rows={4}
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
+                      maxLength={2000}
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveUpdatedRequest(request._id)}
+                        disabled={updating}
+                        className="rounded-lg bg-[#15436b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1b5385] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {updating ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditingRequest}
+                        disabled={updating}
+                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-gray-800 whitespace-pre-wrap">{request.text}</p>
+                    <button
+                      type="button"
+                      onClick={() => startEditingRequest(request)}
+                      className="mt-3 rounded-lg border border-[#15436b] px-3 py-1.5 text-sm font-semibold text-[#15436b] transition hover:bg-[#eaf3fb]"
+                    >
+                      Edit Request
+                    </button>
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
                   <span>Status: {request.status}</span>
                   <span>

@@ -1,4 +1,5 @@
 import Prayer from "../models/Prayer.js";
+import mongoose from "mongoose";
 
 export const getPrayerRequests = async (req, res) => {
   try {
@@ -39,6 +40,44 @@ export const createPrayerRequest = async (req, res) => {
     console.error("Create prayer request error:", error);
     return res.status(500).json({
       message: "Failed to submit prayer request",
+      error: error.message,
+    });
+  }
+};
+
+export const updatePrayerRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid prayer request id" });
+    }
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: "Prayer request text is required" });
+    }
+
+    const existingPrayer = await Prayer.findById(id);
+    if (!existingPrayer) {
+      return res.status(404).json({ message: "Prayer request not found" });
+    }
+
+    if (!existingPrayer.createdBy || existingPrayer.createdBy.toString() !== req.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    existingPrayer.text = text.trim();
+    await existingPrayer.save();
+
+    return res.status(200).json({
+      message: "Prayer request updated successfully",
+      prayer: existingPrayer,
+    });
+  } catch (error) {
+    console.error("Update prayer request error:", error);
+    return res.status(500).json({
+      message: "Failed to update prayer request",
       error: error.message,
     });
   }
