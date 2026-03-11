@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -8,8 +8,44 @@ export default function PrayerRequests() {
   const [text, setText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [requests, setRequests] = useState([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const loadPrayerRequests = async () => {
+    if (!token) {
+      setLoadingRequests(false);
+      return;
+    }
+
+    try {
+      setLoadingRequests(true);
+      const response = await fetch(`${API_URL}/prayers`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not load prayer requests");
+      }
+
+      setRequests(Array.isArray(data.prayers) ? data.prayers : []);
+    } catch (err) {
+      setError(err.message || "Failed to load prayer requests.");
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    loadPrayerRequests();
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,9 +78,21 @@ export default function PrayerRequests() {
         throw new Error(data.message || "Could not submit prayer request");
       }
 
-      setMessage("Prayer request submitted successfully.");
+      const createdPrayer = data?.prayer;
+      if (createdPrayer?.createdBy) {
+        setRequests((prev) => [createdPrayer, ...prev]);
+      }
+
+      setMessage(
+        isAnonymous
+          ? "Prayer request submitted successfully. Anonymous requests are not shown in your personal list."
+          : "Prayer request submitted successfully."
+      );
       setText("");
       setIsAnonymous(false);
+      if (!isAnonymous) {
+        await loadPrayerRequests();
+      }
     } catch (err) {
       setError(err.message || "Failed to submit prayer request.");
     } finally {
@@ -109,6 +157,32 @@ export default function PrayerRequests() {
             {submitting ? "Submitting..." : "Submit Request"}
           </button>
         </form>
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">Your Prayer Requests</h2>
+
+        {loadingRequests && <p className="mt-4 text-gray-600">Loading your requests...</p>}
+
+        {!loadingRequests && requests.length === 0 && (
+          <p className="mt-4 text-gray-600">You have not submitted any non-anonymous prayer requests yet.</p>
+        )}
+
+        {!loadingRequests && requests.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {requests.map((request) => (
+              <article key={request._id} className="rounded-lg border border-gray-200 bg-[#f8fbfd] p-4">
+                <p className="text-gray-800 whitespace-pre-wrap">{request.text}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                  <span>Status: {request.status}</span>
+                  <span>
+                    Submitted: {new Date(request.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
