@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const SUPPORTED_VIDEO_MIME_TYPES = new Set(["video/mp4", "video/webm", "video/ogg"]);
+const SUPPORTED_VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".ogv", ".ogg"]);
+const MEDIA_FILE_ACCEPT = "video/mp4,video/webm,video/ogg,audio/*";
 
 const formatDate = (dateValue) => {
   if (!dateValue) {
@@ -70,6 +73,35 @@ const toSoundCloudEmbedUrl = (url) => {
   return `https://w.soundcloud.com/player/?url=${encodeURIComponent(normalizedUrl)}&color=%2315436b&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false`;
 };
 
+const getFileExtensionFromUrl = (url) => {
+  if (!url || typeof url !== "string") {
+    return "";
+  }
+
+  const withoutQuery = url.split("?")[0];
+  const match = withoutQuery.match(/(\.[a-z0-9]+)$/i);
+  return (match?.[1] || "").toLowerCase();
+};
+
+const isSupportedBrowserVideoFile = (file) => {
+  if (!file) {
+    return false;
+  }
+
+  const mime = (file.type || "").toLowerCase();
+  const ext = (file.name.match(/(\.[a-z0-9]+)$/i)?.[1] || "").toLowerCase();
+
+  if (SUPPORTED_VIDEO_MIME_TYPES.has(mime)) {
+    return true;
+  }
+
+  if (!mime || mime === "application/octet-stream") {
+    return SUPPORTED_VIDEO_EXTENSIONS.has(ext);
+  }
+
+  return false;
+};
+
 const SermonsHub = () => {
   const { token, isAuthenticated, user } = useAuth();
   const [sermons, setSermons] = useState([]);
@@ -88,6 +120,7 @@ const SermonsHub = () => {
   const [mediaFile, setMediaFile] = useState(null);
   const [removeExistingThumbnail, setRemoveExistingThumbnail] = useState(false);
   const [showManagePanel, setShowManagePanel] = useState(false);
+  const [videoPlaybackErrorsById, setVideoPlaybackErrorsById] = useState({});
   const [uploadForm, setUploadForm] = useState({
     title: "",
     speaker: "",
@@ -169,6 +202,10 @@ const SermonsHub = () => {
     });
   }, []);
 
+  useEffect(() => {
+    setVideoPlaybackErrorsById({});
+  }, [sermons]);
+
   const streamItems = useMemo(
     () =>
       sermons.map((sermon, index) => ({
@@ -222,6 +259,15 @@ const SermonsHub = () => {
 
   const handleMediaFileChange = (e) => {
     const file = e.target.files?.[0] || null;
+
+    if (file?.type?.startsWith("video/") && !isSupportedBrowserVideoFile(file)) {
+      setMediaFile(null);
+      e.target.value = "";
+      setUploadError("This video format is not supported for in-browser playback. Please upload MP4, WebM, or Ogg video.");
+      setUploadSuccess("");
+      return;
+    }
+
     setMediaFile(file);
 
     if (file?.type?.startsWith("audio/")) {
@@ -630,7 +676,7 @@ const SermonsHub = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Media File (video/audio, optional)</label>
                 <input
                   type="file"
-                  accept="video/*,audio/*"
+                  accept={MEDIA_FILE_ACCEPT}
                   onChange={handleMediaFileChange}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
                 />
@@ -812,10 +858,38 @@ const SermonsHub = () => {
                       </div>
                     ) : (
                       <div className="bg-[#f3f7f5] rounded-xl p-3 border border-gray-200">
-                        <video controls className="w-full rounded-lg">
+                        <video
+                          controls
+                          preload="metadata"
+                          className="w-full rounded-lg"
+                          onError={() =>
+                            setVideoPlaybackErrorsById((prev) => ({
+                              ...prev,
+                              [sermon._id || `${sermon.title}-${idx}`]: true,
+                            }))
+                          }
+                        >
                           <source src={sermon.url} />
                           Your browser does not support video playback.
                         </video>
+                        {videoPlaybackErrorsById[sermon._id || `${sermon.title}-${idx}`] && (
+                          <p className="mt-2 text-sm text-amber-700">
+                            This video could not be decoded in your browser. Use MP4/WebM/Ogg for uploads, or{" "}
+                            <a
+                              href={sermon.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline font-medium"
+                              download
+                            >
+                              download the file
+                            </a>
+                            {getFileExtensionFromUrl(sermon.url)
+                              ? ` (${getFileExtensionFromUrl(sermon.url)})`
+                              : ""}{" "}
+                            to watch locally.
+                          </p>
+                        )}
                       </div>
                     )
                   ) : (

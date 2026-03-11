@@ -31,6 +31,34 @@ const imageFileFilter = (req, file, cb) => {
   return cb(new Error("Only image files are allowed"));
 };
 
+const supportedVideoMimeTypes = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+]);
+
+const supportedVideoExtensions = new Set([
+  ".mp4",
+  ".webm",
+  ".ogv",
+  ".ogg",
+]);
+
+const isSupportedBrowserVideoFile = (file = {}) => {
+  const mime = (file.mimetype || "").toLowerCase();
+  const ext = path.extname(file.originalname || "").toLowerCase();
+
+  if (supportedVideoMimeTypes.has(mime)) {
+    return true;
+  }
+
+  if (!mime || mime === "application/octet-stream") {
+    return supportedVideoExtensions.has(ext);
+  }
+
+  return false;
+};
+
 const sermonAssetFileFilter = (req, file, cb) => {
   if (file.fieldname === "image") {
     if (file.mimetype && file.mimetype.startsWith("image/")) {
@@ -40,13 +68,19 @@ const sermonAssetFileFilter = (req, file, cb) => {
   }
 
   if (file.fieldname === "media") {
-    if (
-      file.mimetype &&
-      (file.mimetype.startsWith("audio/") || file.mimetype.startsWith("video/"))
-    ) {
+    if (file.mimetype && file.mimetype.startsWith("audio/")) {
       return cb(null, true);
     }
-    return cb(new Error("Media must be an audio or video file"));
+
+    if (file.mimetype && file.mimetype.startsWith("video/")) {
+      if (isSupportedBrowserVideoFile(file)) {
+        return cb(null, true);
+      }
+
+      return cb(new Error("Unsupported video format. Please upload MP4, WebM, or Ogg video."));
+    }
+
+    return cb(new Error("Media must be an audio file or a browser-compatible video (MP4, WebM, Ogg)."));
   }
 
   return cb(new Error("Unsupported upload field"));
