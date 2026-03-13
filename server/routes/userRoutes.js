@@ -6,6 +6,7 @@ import {
   getCurrentUser,
   updateUser,
   updateUserAvatar,
+  deleteUserAvatar,
   deleteUser,
   getUsersByRole,
   getUserByEmail,
@@ -30,6 +31,7 @@ router.get("/:id", authMiddleware, getUserById); // Get user by ID
 router.put("/:id", authMiddleware, updateUser); // Update user (owner or pastor)
 router.patch("/:id/role", authMiddleware, changeUserRole); // Change user role (pastor only)
 router.patch("/:id/avatar", authMiddleware, uploadUserAvatar.single("image"), updateUserAvatar); // Upload profile picture
+router.delete("/:id/avatar", authMiddleware, deleteUserAvatar); // Remove profile picture
 
 router.delete("/:id", authMiddleware, deleteUser); // Delete user (owner or pastor)
 

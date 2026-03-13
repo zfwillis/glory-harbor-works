@@ -255,6 +255,47 @@ export default function Profile() {
     }
   };
 
+  const handleDeleteAvatar = async () => {
+    if (!userId || !user?.avatarUrl) {
+      return;
+    }
+
+    const ok = window.confirm("Remove your profile picture?");
+    if (!ok) return;
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_URL}/users/${userId}/avatar`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Avatar delete failed");
+
+      setMessage("Profile picture removed successfully.");
+      setAvatarPreview("");
+      setAvatarFile(null);
+      setZoom(1);
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = "";
+      }
+      if (setUser) {
+        setUser(data.user || { ...user, avatarUrl: "" });
+      }
+    } catch (err) {
+      console.error("Avatar delete error:", err);
+      setError(err.message || "Error removing profile picture");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (authLoading) return <div className="p-8">Checking authentication...</div>;
 
   if (!user) {
@@ -298,6 +339,16 @@ export default function Profile() {
             >
               {!user.avatarUrl ? "Upload" : "Edit Picture"}
             </button>
+            {user.avatarUrl && (
+              <button
+                type="button"
+                onClick={handleDeleteAvatar}
+                disabled={loading}
+                className="px-4 py-2 border border-red-300 text-red-700 rounded disabled:opacity-50"
+              >
+                {loading ? "Removing..." : "Remove Picture"}
+              </button>
+            )}
 
             {avatarPreview && (
               <div className="w-full max-w-md">

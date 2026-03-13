@@ -336,6 +336,54 @@ export const updateUserAvatar = async (req, res) => {
 };
 
 /**
+ * Remove user avatar
+ * DELETE /api/users/:id/avatar
+ */
+export const deleteUserAvatar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.userId;
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (requesterId !== id) {
+      const requester = await User.findById(requesterId).select("role");
+      if (requester?.role !== "pastor") {
+        return res.status(403).json({ success: false, message: "Forbidden: insufficient permissions" });
+      }
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const oldAvatarUrl = user.avatarUrl || "";
+    user.avatarUrl = "";
+    await user.save();
+
+    if (oldAvatarUrl) {
+      removeLocalUploadIfExists(oldAvatarUrl);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile picture removed successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("Delete avatar error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error removing profile picture",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Get users by role
  * GET /api/users/role/:role
  */
