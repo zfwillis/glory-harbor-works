@@ -7,6 +7,7 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const normalizedRole = String(user?.role || "").trim().toLowerCase();
 
   const handleLogout = () => {
     logout();
@@ -51,6 +52,11 @@ const Navbar = () => {
               <li>
                 <Link className="hover:text-[#E7A027]" to="/meetings">Meetings</Link>
               </li>
+              {normalizedRole === "pastor" && (
+                <li>
+                  <Link className="hover:text-[#E7A027]" to="/pastor-dashboard">Pastor Dashboard</Link>
+                </li>
+              )}
               <li className="flex items-center gap-2">
                 <FaUser className="text-sm" />
                 <Link to="/profile" className="text-sm hover:text-[#E7A027]">{user?.firstName}</Link>
@@ -126,6 +132,11 @@ const Navbar = () => {
                 <li>
                   <Link to="/meetings" onClick={() => setOpen(false)}>Meetings</Link>
                 </li>
+                {normalizedRole === "pastor" && (
+                  <li>
+                    <Link to="/pastor-dashboard" onClick={() => setOpen(false)}>Pastor Dashboard</Link>
+                  </li>
+                )}
                 <li className="flex items-center gap-2 pt-4 border-t border-gray-600">
                   <FaUser className="text-sm" />
                   <Link to="/profile" onClick={() => setOpen(false)} className="text-base">{user?.firstName} {user?.lastName}</Link>

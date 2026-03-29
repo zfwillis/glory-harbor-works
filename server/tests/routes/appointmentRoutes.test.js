@@ -23,9 +23,25 @@ describe("Appointment Routes", () => {
     expect(hasRoute).toBe(true);
   });
 
+  it("should register GET /pastor route", () => {
+    const hasRoute = router.stack.some(
+      (layer) => layer.route?.path === "/pastor" && layer.route?.methods?.get
+    );
+
+    expect(hasRoute).toBe(true);
+  });
+
   it("should register PATCH /:id route", () => {
     const hasRoute = router.stack.some(
       (layer) => layer.route?.path === "/:id" && layer.route?.methods?.patch
+    );
+
+    expect(hasRoute).toBe(true);
+  });
+
+  it("should register PATCH /:id/status route", () => {
+    const hasRoute = router.stack.some(
+      (layer) => layer.route?.path === "/:id/status" && layer.route?.methods?.patch
     );
 
     expect(hasRoute).toBe(true);

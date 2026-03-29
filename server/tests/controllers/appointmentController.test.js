@@ -22,6 +22,8 @@ const {
   createAppointment,
   deleteAppointment,
   getAppointments,
+  getPastorAppointments,
+  updateAppointmentStatus,
   updateAppointment,
 } = await import("../../controllers/appointmentController.js");
 
@@ -44,7 +46,24 @@ describe("Appointment Controller", () => {
   });
 
   describe("getAppointments", () => {
+    it("returns 403 for non-member requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+
+      const req = { userId: "p1" };
+      const res = createMockRes();
+
+      await getAppointments(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Member access required");
+    });
+
     it("returns current user's appointments", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       const appointments = [{ _id: "a1" }, { _id: "a2" }];
       const sort = jest.fn().mockResolvedValue(appointments);
       const populate = jest.fn().mockReturnValue({ sort });
@@ -62,8 +81,68 @@ describe("Appointment Controller", () => {
     });
   });
 
+  describe("getPastorAppointments", () => {
+    it("returns 403 for non-pastor requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+
+      const req = { userId: "u1" };
+      const res = createMockRes();
+
+      await getPastorAppointments(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Pastor access required");
+    });
+
+    it("returns current pastor appointments", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+      const appointments = [{ _id: "a1" }];
+      const sort = jest.fn().mockResolvedValue(appointments);
+      const populateMember = jest.fn().mockReturnValue({ sort });
+      mockAppointmentModel.find.mockReturnValue({
+        populate: populateMember,
+      });
+
+      const req = { userId: "p1" };
+      const res = createMockRes();
+
+      await getPastorAppointments(req, res);
+
+      expect(mockAppointmentModel.find).toHaveBeenCalledWith({ pastorId: "p1" });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.appointments).toEqual(appointments);
+    });
+  });
+
   describe("createAppointment", () => {
+    it("returns 403 for non-member requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+
+      const req = {
+        userId: "p1",
+        body: {
+          pastorId: "507f1f77bcf86cd799439011",
+          scheduledFor: "2026-03-29T10:00",
+        },
+      };
+      const res = createMockRes();
+
+      await createAppointment(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Member access required");
+    });
+
     it("returns 400 for invalid pastor id", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       const req = { userId: "u1", body: { pastorId: "bad-id", scheduledFor: "2026-03-29T10:00" } };
       const res = createMockRes();
 
@@ -74,9 +153,13 @@ describe("Appointment Controller", () => {
     });
 
     it("returns 404 when pastor does not exist", async () => {
-      mockUserModel.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue(null),
-      });
+      mockUserModel.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "member" }),
+        })
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue(null),
+        });
 
       const req = {
         userId: "u1",
@@ -93,15 +176,48 @@ describe("Appointment Controller", () => {
       expect(res.body.message).toBe("Pastor not found");
     });
 
+    it("returns 400 when selected time is outside pastor availability", async () => {
+      mockUserModel.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "member" }),
+        })
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({
+            _id: "p1",
+            role: "pastor",
+            availability: [{ day: "Monday", start: "09:00", end: "12:00" }],
+          }),
+        });
+
+      const req = {
+        userId: "u1",
+        body: {
+          pastorId: "507f1f77bcf86cd799439011",
+          scheduledFor: "2026-03-29T10:00",
+        },
+      };
+      const res = createMockRes();
+
+      await createAppointment(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Selected time is outside the pastor's availability");
+    });
+
     it("creates an appointment", async () => {
-      mockUserModel.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          _id: "p1",
-          role: "pastor",
-          firstName: "Pat",
-          lastName: "Shepherd",
-        }),
-      });
+      mockUserModel.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "member" }),
+        })
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({
+            _id: "p1",
+            role: "pastor",
+            firstName: "Pat",
+            lastName: "Shepherd",
+            availability: [{ day: "Sunday", start: "09:00", end: "12:00" }],
+          }),
+        });
       mockAppointmentModel.create.mockResolvedValue({ _id: "a1" });
       mockAppointmentModel.findById.mockReturnValue({
         populate: jest.fn().mockResolvedValue({
@@ -118,7 +234,6 @@ describe("Appointment Controller", () => {
           pastorId: "507f1f77bcf86cd799439011",
           scheduledFor: "2026-03-29T10:00",
           location: "Office",
-          topic: "Counseling",
           notes: "Need guidance",
         },
       };
@@ -131,7 +246,6 @@ describe("Appointment Controller", () => {
           memberId: "u1",
           pastorId: "507f1f77bcf86cd799439011",
           location: "Office",
-          topic: "Counseling",
           notes: "Need guidance",
           status: "pending",
         })
@@ -142,7 +256,31 @@ describe("Appointment Controller", () => {
   });
 
   describe("updateAppointment", () => {
+    it("returns 403 for non-member requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "p1",
+        body: {
+          pastorId: "507f1f77bcf86cd799439011",
+          scheduledFor: "2026-03-29T10:00",
+        },
+      };
+      const res = createMockRes();
+
+      await updateAppointment(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Member access required");
+    });
+
     it("returns 400 for invalid meeting id", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       const req = {
         params: { id: "bad-id" },
         userId: "u1",
@@ -160,6 +298,9 @@ describe("Appointment Controller", () => {
     });
 
     it("returns 403 when requester does not own the meeting", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       mockAppointmentModel.findById.mockResolvedValue({
         memberId: { toString: () => "other-user" },
       });
@@ -182,6 +323,19 @@ describe("Appointment Controller", () => {
 
     it("updates an owned meeting", async () => {
       const save = jest.fn().mockResolvedValue(undefined);
+      mockUserModel.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "member" }),
+        })
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({
+            _id: "p1",
+            role: "pastor",
+            firstName: "Pat",
+            lastName: "Shepherd",
+            availability: [{ day: "Sunday", start: "09:00", end: "12:00" }],
+          }),
+        });
       mockAppointmentModel.findById
         .mockResolvedValueOnce({
           _id: "a1",
@@ -194,22 +348,12 @@ describe("Appointment Controller", () => {
             topic: "Updated topic",
           }),
         });
-      mockUserModel.findById.mockReturnValue({
-        select: jest.fn().mockResolvedValue({
-          _id: "p1",
-          role: "pastor",
-          firstName: "Pat",
-          lastName: "Shepherd",
-        }),
-      });
-
       const req = {
         params: { id: "507f1f77bcf86cd799439012" },
         userId: "u1",
         body: {
           pastorId: "507f1f77bcf86cd799439011",
           scheduledFor: "2026-03-29T10:00",
-          topic: " Updated topic ",
         },
       };
       const res = createMockRes();
@@ -220,10 +364,132 @@ describe("Appointment Controller", () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.message).toBe("Meeting updated successfully");
     });
+
+    it("returns 400 when updated time is outside pastor availability", async () => {
+      mockUserModel.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "member" }),
+        })
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({
+            _id: "p1",
+            role: "pastor",
+            availability: [{ day: "Monday", start: "09:00", end: "12:00" }],
+          }),
+        });
+      mockAppointmentModel.findById.mockResolvedValueOnce({
+        _id: "a1",
+        memberId: { toString: () => "u1" },
+      });
+
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "u1",
+        body: {
+          pastorId: "507f1f77bcf86cd799439011",
+          scheduledFor: "2026-03-29T10:00",
+        },
+      };
+      const res = createMockRes();
+
+      await updateAppointment(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Selected time is outside the pastor's availability");
+    });
+  });
+
+  describe("updateAppointmentStatus", () => {
+    it("returns 400 for invalid status", async () => {
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "p1",
+        body: { status: "pending" },
+      };
+      const res = createMockRes();
+
+      await updateAppointmentStatus(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Invalid meeting status");
+    });
+
+    it("returns 403 for non-pastor requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "u1",
+        body: { status: "approved" },
+      };
+      const res = createMockRes();
+
+      await updateAppointmentStatus(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Pastor access required");
+    });
+
+    it("updates status for assigned pastor", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+      mockAppointmentModel.findById
+        .mockResolvedValueOnce({
+          _id: "a1",
+          pastorId: { toString: () => "p1" },
+          status: "pending",
+          save,
+        })
+        .mockReturnValueOnce({
+          populate: jest.fn().mockReturnValue({
+            populate: jest.fn().mockResolvedValue({
+              _id: "a1",
+              status: "approved",
+            }),
+          }),
+        });
+
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "p1",
+        body: { status: "approved" },
+      };
+      const res = createMockRes();
+
+      await updateAppointmentStatus(req, res);
+
+      expect(save).toHaveBeenCalled();
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe("Meeting status updated successfully");
+    });
   });
 
   describe("deleteAppointment", () => {
+    it("returns 403 for non-member requester", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+
+      const req = {
+        params: { id: "507f1f77bcf86cd799439012" },
+        userId: "p1",
+      };
+      const res = createMockRes();
+
+      await deleteAppointment(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Member access required");
+    });
+
     it("returns 404 when meeting does not exist", async () => {
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       mockAppointmentModel.findById.mockResolvedValue(null);
 
       const req = {
@@ -240,6 +506,9 @@ describe("Appointment Controller", () => {
 
     it("deletes an owned meeting", async () => {
       const deleteOne = jest.fn().mockResolvedValue(undefined);
+      mockUserModel.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
       mockAppointmentModel.findById.mockResolvedValue({
         memberId: { toString: () => "u1" },
         deleteOne,

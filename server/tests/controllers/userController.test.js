@@ -25,6 +25,7 @@ const {
   getUserById,
   getCurrentUser,
   updateUser,
+  updatePassword,
   updateUserAvatar,
   deleteUserAvatar,
   deleteUser,
@@ -229,6 +230,40 @@ describe("User Controller", () => {
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe("User not found");
     });
+
+    it("returns 403 when non-pastor tries to update availability", async () => {
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+      const req = {
+        params: { id: "same-id" },
+        userId: "same-id",
+        body: { availability: [{ day: "Monday", start: "09:00", end: "12:00" }] },
+      };
+      const res = createMockRes();
+
+      await updateUser(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Only pastors can update availability");
+    });
+
+    it("returns 403 when pastor tries to update another user's availability", async () => {
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+      const req = {
+        params: { id: "member-id" },
+        userId: "pastor-id",
+        body: { availability: [{ day: "Monday", start: "09:00", end: "12:00" }] },
+      };
+      const res = createMockRes();
+
+      await updateUser(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: pastors can only update their own availability");
+    });
   });
 
   describe("deleteUser", () => {
@@ -290,6 +325,117 @@ describe("User Controller", () => {
 
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe("User not found");
+    });
+  });
+
+  describe("updatePassword", () => {
+    it("returns 401 when requester is missing", async () => {
+      const req = {
+        params: { id: "u1" },
+        body: { currentPassword: "oldpass", newPassword: "newpass1" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("Unauthorized");
+    });
+
+    it("returns 403 when requester tries to change another user's password", async () => {
+      const req = {
+        params: { id: "target-id" },
+        userId: "requester-id",
+        body: { currentPassword: "oldpass", newPassword: "newpass1" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden");
+    });
+
+    it("returns 400 when password fields are missing", async () => {
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        body: { currentPassword: "", newPassword: "" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Current password and new password are required");
+    });
+
+    it("returns 400 when new password is too short", async () => {
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        body: { currentPassword: "oldpass", newPassword: "123" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("New password must be at least 6 characters long");
+    });
+
+    it("returns 404 when user is not found", async () => {
+      MockUser.findById.mockResolvedValue(null);
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        body: { currentPassword: "oldpass", newPassword: "newpass1" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("returns 400 when current password is incorrect", async () => {
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        comparePassword: jest.fn().mockResolvedValue(false),
+      });
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        body: { currentPassword: "wrongpass", newPassword: "newpass1" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Current password is incorrect");
+    });
+
+    it("updates password for the owning user", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        comparePassword: jest.fn().mockResolvedValue(true),
+        save,
+      });
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        body: { currentPassword: "oldpass", newPassword: "newpass1" },
+      };
+      const res = createMockRes();
+
+      await updatePassword(req, res);
+
+      expect(save).toHaveBeenCalled();
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe("Password updated successfully");
     });
   });
 

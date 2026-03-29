@@ -204,6 +204,19 @@ export const updateUser = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
     }
 
+    if (availability !== undefined) {
+      if (requester?.role !== "pastor") {
+        return res.status(403).json({ success: false, message: "Only pastors can update availability" });
+      }
+
+      if (requesterId !== id) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: pastors can only update their own availability",
+        });
+      }
+    }
+
     // Find and update user
     const updatedUser = await User.findByIdAndUpdate(
       id,
@@ -234,6 +247,66 @@ export const updateUser = async (req, res) => {
       success: false,
       message: "Error updating user",
       error: error.message
+    });
+  }
+};
+
+/**
+ * Update current user's password
+ * PATCH /api/users/:id/password
+ */
+export const updatePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    const requesterId = req.userId;
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (requesterId !== id) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 6 characters long",
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const isPasswordValid = await user.comparePassword(currentPassword);
+    if (!isPasswordValid) {
+      return res.status(400).json({ success: false, message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("Update password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error updating password",
+      error: error.message,
     });
   }
 };

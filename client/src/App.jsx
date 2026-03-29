@@ -13,6 +13,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import SermonsHub from './pages/SermonsHub'
 import PrayerRequests from './pages/PrayerRequests'
 import Meetings from './pages/Meetings'
+import PastorDash from './pages/PastorDash'
 
 function App() {
   return (
@@ -49,6 +50,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Meetings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pastor-dashboard"
+                element={
+                  <ProtectedRoute roles={["pastor"]}>
+                    <PastorDash />
                   </ProtectedRoute>
                 }
               />

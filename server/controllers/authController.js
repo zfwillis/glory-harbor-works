@@ -55,6 +55,7 @@ export const register = async (req, res) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         status: user.status,
+        availability: user.availability,
       },
     });
   } catch (error) {
@@ -99,6 +100,7 @@ export const login = async (req, res) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         status: user.status,
+        availability: user.availability,
       },
     });
   } catch (error) {

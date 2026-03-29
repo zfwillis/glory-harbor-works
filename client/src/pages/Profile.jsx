@@ -57,6 +57,11 @@ export default function Profile() {
   const avatarInputRef = useRef(null);
 
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "" });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -79,6 +84,13 @@ export default function Profile() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((s) => ({ ...s, [name]: value }));
+    setError("");
+    setMessage("");
+  };
+
+  const handlePasswordChangeInput = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
     setError("");
     setMessage("");
   };
@@ -255,6 +267,59 @@ export default function Profile() {
     }
   };
 
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (!userId) return;
+
+    setError("");
+    setMessage("");
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setError("Please complete all password fields.");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setError("New password must be at least 6 characters long.");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError("New password and confirm password must match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/users/${userId}/password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Password update failed");
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setMessage("Password updated successfully.");
+    } catch (err) {
+      console.error("Password update error:", err);
+      setError(err.message || "Error updating password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (authLoading) return <div className="p-8">Checking authentication...</div>;
 
   if (!user) {
@@ -363,6 +428,48 @@ export default function Profile() {
             </button>
           </div>
         </form>
+
+        <div className="mt-8 border-t pt-8">
+          <h2 className="text-xl font-semibold mb-4">Reset Password</h2>
+          <form onSubmit={handlePasswordUpdate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+              <input
+                type="password"
+                name="currentPassword"
+                value={passwordForm.currentPassword}
+                onChange={handlePasswordChangeInput}
+                className="w-full px-4 py-2 border rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+              <input
+                type="password"
+                name="newPassword"
+                value={passwordForm.newPassword}
+                onChange={handlePasswordChangeInput}
+                className="w-full px-4 py-2 border rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={passwordForm.confirmPassword}
+                onChange={handlePasswordChangeInput}
+                className="w-full px-4 py-2 border rounded"
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-[#15436b] text-white rounded">
+              {loading ? "Updating..." : "Update Password"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

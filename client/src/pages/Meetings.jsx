@@ -7,7 +7,6 @@ const emptyForm = {
   pastorId: "",
   scheduledFor: "",
   location: "",
-  topic: "",
   notes: "",
 };
 
@@ -27,6 +26,63 @@ const formatMeetingDate = (value) => {
   });
 };
 
+const getMinutesFromTimeString = (value = "") => {
+  const [hours, minutes] = String(value).split(":").map(Number);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return -1;
+  }
+
+  return hours * 60 + minutes;
+};
+
+const isWithinPastorAvailability = (scheduledForValue, availability = []) => {
+  if (!scheduledForValue) {
+    return true;
+  }
+
+  const scheduledFor = new Date(scheduledForValue);
+  if (Number.isNaN(scheduledFor.getTime())) {
+    return false;
+  }
+
+  if (!Array.isArray(availability) || availability.length === 0) {
+    return false;
+  }
+
+  const dayName = scheduledFor.toLocaleDateString("en-US", { weekday: "long" });
+  const scheduledMinutes = scheduledFor.getHours() * 60 + scheduledFor.getMinutes();
+
+  return availability.some((slot) => {
+    if (!slot || slot.day !== dayName) {
+      return false;
+    }
+
+    const startMinutes = getMinutesFromTimeString(slot.start);
+    const endMinutes = getMinutesFromTimeString(slot.end);
+
+    if (startMinutes < 0 || endMinutes < 0) {
+      return false;
+    }
+
+    return scheduledMinutes >= startMinutes && scheduledMinutes <= endMinutes;
+  });
+};
+
+const getStatusClasses = (status = "") => {
+  const normalizedStatus = String(status).toLowerCase();
+
+  if (normalizedStatus === "approved") {
+    return "border-green-200 bg-green-50 text-green-700";
+  }
+
+  if (normalizedStatus === "declined") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  return "border-blue-200 bg-blue-50 text-blue-700";
+};
+
 export default function Meetings() {
   const { token, user } = useAuth();
   const [form, setForm] = useState(emptyForm);
@@ -39,12 +95,15 @@ export default function Meetings() {
   const [editingMeetingId, setEditingMeetingId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [availabilityModalMessage, setAvailabilityModalMessage] = useState("");
 
-  const isMember = user?.role === "member";
   const selectedPastor = useMemo(
     () => pastors.find((pastor) => pastor._id === form.pastorId || pastor.id === form.pastorId),
     [form.pastorId, pastors]
   );
+  const selectedPastorAvailability = Array.isArray(selectedPastor?.availability)
+    ? selectedPastor.availability
+    : [];
 
   const loadPastors = async () => {
     try {
@@ -116,11 +175,6 @@ export default function Meetings() {
     setError("");
     setMessage("");
 
-    if (!isMember) {
-      setError("Only members can manage meetings from this page.");
-      return;
-    }
-
     if (!form.pastorId) {
       setError("Please choose a pastor.");
       return;
@@ -128,6 +182,18 @@ export default function Meetings() {
 
     if (!form.scheduledFor) {
       setError("Please choose a meeting date and time.");
+      return;
+    }
+
+    if (!selectedPastor) {
+      setError("Please choose a valid pastor.");
+      return;
+    }
+
+    if (!isWithinPastorAvailability(form.scheduledFor, selectedPastorAvailability)) {
+      setAvailabilityModalMessage(
+        "You can't schedule this meeting because the selected time is outside the pastor's availability."
+      );
       return;
     }
 
@@ -168,7 +234,6 @@ export default function Meetings() {
       pastorId: meeting.pastorId?._id || meeting.pastorId?.id || "",
       scheduledFor: meeting.scheduledFor ? new Date(meeting.scheduledFor).toISOString().slice(0, 16) : "",
       location: meeting.location || "",
-      topic: meeting.topic || "",
       notes: meeting.notes || "",
     });
     setError("");
@@ -219,18 +284,30 @@ export default function Meetings() {
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-12">
+      {availabilityModalMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-semibold text-gray-900">Scheduling Unavailable</h2>
+            <p className="mt-3 text-sm text-gray-700">{availabilityModalMessage}</p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAvailabilityModalMessage("")}
+                className="rounded-lg bg-[#15436b] px-5 py-2.5 font-semibold text-white transition hover:bg-[#1b5385]"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl">
         <h1 className="text-3xl font-bold text-[#15436b]">Meetings</h1>
         <p className="mt-3 text-gray-700">
           Schedule a one-on-one meeting with a pastor, then review, update, or cancel it here.
         </p>
       </div>
-
-      {!isMember && (
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
-          This page is intended for member meeting requests.
-        </div>
-      )}
 
       {message && (
         <div className="mt-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">
@@ -285,21 +362,19 @@ export default function Meetings() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
                 required
               />
-            </div>
-
-            <div>
-              <label htmlFor="topic" className="mb-1 block text-sm font-medium text-gray-700">
-                Topic
-              </label>
-              <input
-                id="topic"
-                name="topic"
-                value={form.topic}
-                onChange={handleChange}
-                placeholder="What would you like to discuss?"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
-                maxLength={120}
-              />
+              {selectedPastor && selectedPastorAvailability.length === 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  This pastor has not added availability yet, so you cannot request a meeting time.
+                </p>
+              )}
+              {selectedPastor &&
+                selectedPastorAvailability.length > 0 &&
+                form.scheduledFor &&
+                !isWithinPastorAvailability(form.scheduledFor, selectedPastorAvailability) && (
+                  <p className="mt-1 text-xs text-red-600">
+                    The selected time is outside this pastor&apos;s availability.
+                  </p>
+                )}
             </div>
 
             <div>
@@ -336,7 +411,11 @@ export default function Meetings() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="submit"
-                disabled={saving || loadingPastors}
+                disabled={
+                  saving ||
+                  loadingPastors ||
+                  (selectedPastor && selectedPastorAvailability.length === 0)
+                }
                 className="rounded-lg bg-[#15436b] px-5 py-2.5 font-semibold text-white transition hover:bg-[#1b5385] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving ? "Saving..." : editingMeetingId ? "Save Changes" : "Schedule Meeting"}
@@ -365,6 +444,20 @@ export default function Meetings() {
                 {selectedPastor.firstName} {selectedPastor.lastName}
               </p>
               {selectedPastor.email && <p className="mt-1 text-sm text-gray-600">{selectedPastor.email}</p>}
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-gray-900">Availability</p>
+                {selectedPastorAvailability.length === 0 ? (
+                  <p className="mt-1 text-sm text-gray-600">No availability has been added yet.</p>
+                ) : (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700">
+                    {selectedPastorAvailability.map((slot, index) => (
+                      <li key={`${slot.day}-${slot.start}-${slot.end}-${index}`}>
+                        {slot.day}: {slot.start} - {slot.end}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <p className="mt-3 text-sm text-gray-600">
                 New or edited meetings are submitted with a <span className="font-semibold">pending</span> status.
               </p>
@@ -386,6 +479,7 @@ export default function Meetings() {
           <div className="mt-4 space-y-4">
             {meetings.map((meeting) => {
               const pastor = meeting.pastorId || {};
+              const pastorName = [pastor.firstName, pastor.lastName].filter(Boolean).join(" ").trim() || "The pastor";
 
               return (
                 <article key={meeting._id} className="rounded-xl border border-gray-200 bg-[#f8fbfd] p-4">
@@ -404,8 +498,19 @@ export default function Meetings() {
                       {meeting.notes && (
                         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{meeting.notes}</p>
                       )}
+                      {meeting.status === "declined" && (
+                        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                          {pastorName} has declined your meeting. You can edit it and send a new request, or cancel it.
+                        </div>
+                      )}
                       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                        <span>Status: {meeting.status}</span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-sm font-semibold capitalize ${getStatusClasses(
+                            meeting.status
+                          )}`}
+                        >
+                          Status: {meeting.status}
+                        </span>
                         <span>Requested: {formatMeetingDate(meeting.createdAt)}</span>
                       </div>
                     </div>
