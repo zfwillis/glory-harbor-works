@@ -12,6 +12,7 @@ import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 import SermonsHub from './pages/SermonsHub'
 import PrayerRequests from './pages/PrayerRequests'
+import Meetings from './pages/Meetings'
 
 function App() {
   return (
@@ -40,6 +41,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <PrayerRequests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/meetings"
+                element={
+                  <ProtectedRoute>
+                    <Meetings />
                   </ProtectedRoute>
                 }
               />

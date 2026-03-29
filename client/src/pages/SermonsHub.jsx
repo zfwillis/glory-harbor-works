@@ -111,6 +111,9 @@ const SermonsHub = () => {
   const [commentInputsById, setCommentInputsById] = useState({});
   const [commentBusyById, setCommentBusyById] = useState({});
   const [commentDeleteBusyById, setCommentDeleteBusyById] = useState({});
+  const [editingCommentById, setEditingCommentById] = useState({});
+  const [commentEditInputsById, setCommentEditInputsById] = useState({});
+  const [commentUpdateBusyById, setCommentUpdateBusyById] = useState({});
   const [uploading, setUploading] = useState(false);
   const [deletingById, setDeletingById] = useState({});
   const [uploadError, setUploadError] = useState("");
@@ -547,6 +550,67 @@ const SermonsHub = () => {
     }
   };
 
+  const startEditingComment = (commentId, currentText) => {
+    setEditingCommentById((prev) => ({ ...prev, [commentId]: true }));
+    setCommentEditInputsById((prev) => ({ ...prev, [commentId]: currentText || "" }));
+    setError("");
+  };
+
+  const cancelEditingComment = (commentId) => {
+    setEditingCommentById((prev) => ({ ...prev, [commentId]: false }));
+    setCommentEditInputsById((prev) => ({ ...prev, [commentId]: "" }));
+  };
+
+  const updateComment = async (sermonId, commentId) => {
+    const text = commentEditInputsById[commentId]?.trim();
+    if (!text) {
+      setError("Comment text is required.");
+      return;
+    }
+
+    if (!isAuthenticated || !token) {
+      setError("Please log in to edit comments.");
+      return;
+    }
+
+    setCommentUpdateBusyById((prev) => ({ ...prev, [commentId]: true }));
+    setError("");
+
+    try {
+      const response = await fetch(`${API_URL}/sermons/${sermonId}/comments/${commentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not update comment");
+      }
+
+      setSermons((prev) =>
+        prev.map((sermon) =>
+          sermon._id === sermonId
+            ? {
+                ...sermon,
+                comments: (sermon.comments || []).map((comment) =>
+                  comment._id === commentId ? { ...comment, ...data.comment } : comment
+                ),
+              }
+            : sermon
+        )
+      );
+      cancelEditingComment(commentId);
+    } catch (err) {
+      setError(err.message || "Failed to update comment");
+    } finally {
+      setCommentUpdateBusyById((prev) => ({ ...prev, [commentId]: false }));
+    }
+  };
+
   const deleteComment = async (sermonId, commentId) => {
     if (!isAuthenticated || !token) {
       setError("Please log in to delete comments.");
@@ -919,10 +983,13 @@ const SermonsHub = () => {
                         <p className="text-sm text-gray-500">No comments yet.</p>
                       )}
                       {(sermon.comments || []).map((comment) => {
+                        const isOwner = comment.userId?.toString?.() === (user?.id || user?._id);
+                        const canEditComment =
+                          user?.role === "leader" || user?.role === "pastor" || isOwner;
                         const canDeleteComment =
                           user?.role === "leader" ||
                           user?.role === "pastor" ||
-                          comment.userId?.toString?.() === (user?.id || user?._id);
+                          isOwner;
 
                         return (
                           <div key={comment._id} className="bg-[#f3f7f5] border border-gray-200 rounded-lg p-3">
@@ -944,19 +1011,71 @@ const SermonsHub = () => {
                                   <p className="text-xs font-semibold text-gray-700">
                                     {comment.firstName} {comment.lastName}
                                   </p>
-                                  <p className="text-sm text-gray-800">{comment.text}</p>
+                                  {editingCommentById[comment._id] ? (
+                                    <div className="mt-1 space-y-2">
+                                      <input
+                                        type="text"
+                                        value={commentEditInputsById[comment._id] || ""}
+                                        onChange={(e) =>
+                                          setCommentEditInputsById((prev) => ({
+                                            ...prev,
+                                            [comment._id]: e.target.value,
+                                          }))
+                                        }
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#15436b]"
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => updateComment(sermon._id, comment._id)}
+                                          disabled={commentUpdateBusyById[comment._id]}
+                                          className="text-xs px-2 py-1 rounded border border-[#15436b] text-[#15436b] hover:bg-[#eaf3fb] disabled:opacity-50"
+                                        >
+                                          {commentUpdateBusyById[comment._id] ? "Saving..." : "Save"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => cancelEditingComment(comment._id)}
+                                          disabled={commentUpdateBusyById[comment._id]}
+                                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-800">{comment.text}</p>
+                                  )}
                                 </div>
                               </div>
 
-                              {canDeleteComment && comment._id && (
-                                <button
-                                  type="button"
-                                  onClick={() => deleteComment(sermon._id, comment._id)}
-                                  disabled={commentDeleteBusyById[comment._id]}
-                                  className="text-xs px-2 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                                >
-                                  {commentDeleteBusyById[comment._id] ? "Deleting..." : "Delete"}
-                                </button>
+                              {(canEditComment || canDeleteComment) && comment._id && (
+                                <div className="flex gap-2">
+                                  {canEditComment && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        editingCommentById[comment._id]
+                                          ? cancelEditingComment(comment._id)
+                                          : startEditingComment(comment._id, comment.text)
+                                      }
+                                      disabled={commentDeleteBusyById[comment._id] || commentUpdateBusyById[comment._id]}
+                                      className="text-xs px-2 py-1 rounded border border-[#15436b] text-[#15436b] hover:bg-[#eaf3fb] disabled:opacity-50"
+                                    >
+                                      {editingCommentById[comment._id] ? "Close" : "Edit"}
+                                    </button>
+                                  )}
+                                  {canDeleteComment && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteComment(sermon._id, comment._id)}
+                                      disabled={commentDeleteBusyById[comment._id] || commentUpdateBusyById[comment._id]}
+                                      className="text-xs px-2 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      {commentDeleteBusyById[comment._id] ? "Deleting..." : "Delete"}
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>

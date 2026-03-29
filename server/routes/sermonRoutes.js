@@ -7,6 +7,7 @@ import {
 	getSermons,
 	likeSermon,
 	unlikeSermon,
+	updateCommentOnSermon,
 	updateSermon,
 } from "../controllers/sermonController.js";
 import { authMiddleware, authorize, optionalAuthMiddleware } from "../middleware/auth.js";
@@ -37,6 +38,7 @@ router.patch(
 );
 router.delete("/:id", authMiddleware, authorize("leader", "pastor"), deleteSermon);
 router.post("/:id/comments", authMiddleware, addCommentToSermon);
+router.patch("/:id/comments/:commentId", authMiddleware, updateCommentOnSermon);
 router.delete("/:id/comments/:commentId", authMiddleware, deleteCommentFromSermon);
 router.post("/:id/like", authMiddleware, likeSermon);
 router.delete("/:id/like", authMiddleware, unlikeSermon);

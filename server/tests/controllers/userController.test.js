@@ -23,7 +23,10 @@ const {
   registerUser,
   getAllUsers,
   getUserById,
+  getCurrentUser,
   updateUser,
+  updateUserAvatar,
+  deleteUserAvatar,
   deleteUser,
   getUsersByRole,
   getUserByEmail,
@@ -108,6 +111,20 @@ describe("User Controller", () => {
   });
 
   describe("getUserById", () => {
+    it("returns user when found", async () => {
+      const user = { _id: "u1", firstName: "Test" };
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue(user),
+      });
+      const req = { params: { id: "u1" } };
+      const res = createMockRes();
+
+      await getUserById(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.user).toEqual(user);
+    });
+
     it("returns 404 when user is not found", async () => {
       MockUser.findById.mockReturnValue({
         select: jest.fn().mockResolvedValue(null),
@@ -116,6 +133,30 @@ describe("User Controller", () => {
       const res = createMockRes();
 
       await getUserById(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+  });
+
+  describe("getCurrentUser", () => {
+    it("returns current user when found", async () => {
+      MockUser.findById.mockResolvedValue({ _id: "u1", email: "u1@test.com" });
+      const req = { userId: "u1" };
+      const res = createMockRes();
+
+      await getCurrentUser(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.user._id).toBe("u1");
+    });
+
+    it("returns 404 when current user is not found", async () => {
+      MockUser.findById.mockResolvedValue(null);
+      const req = { userId: "missing" };
+      const res = createMockRes();
+
+      await getCurrentUser(req, res);
 
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe("User not found");
@@ -170,9 +211,53 @@ describe("User Controller", () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.message).toBe("User updated successfully");
     });
+
+    it("returns 404 when target user does not exist", async () => {
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+      MockUser.findByIdAndUpdate.mockResolvedValue(null);
+      const req = {
+        params: { id: "target-id" },
+        userId: "pastor-id",
+        body: { firstName: "Updated" },
+      };
+      const res = createMockRes();
+
+      await updateUser(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
   });
 
   describe("deleteUser", () => {
+    it("returns 401 when requester is missing", async () => {
+      const req = { params: { id: "same-id" } };
+      const res = createMockRes();
+
+      await deleteUser(req, res);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("Unauthorized");
+    });
+
+    it("returns 403 when requester is not owner or pastor", async () => {
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+      const req = {
+        params: { id: "target-id" },
+        userId: "requester-id",
+      };
+      const res = createMockRes();
+
+      await deleteUser(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: insufficient permissions");
+    });
+
     it("deletes user when requester owns profile", async () => {
       MockUser.findById.mockReturnValue({
         select: jest.fn().mockResolvedValue({ role: "member" }),
@@ -189,6 +274,205 @@ describe("User Controller", () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.message).toBe("User deleted successfully");
     });
+
+    it("returns 404 when target user does not exist", async () => {
+      MockUser.findById.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ role: "pastor" }),
+      });
+      MockUser.findByIdAndDelete.mockResolvedValue(null);
+      const req = {
+        params: { id: "missing-id" },
+        userId: "pastor-id",
+      };
+      const res = createMockRes();
+
+      await deleteUser(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+  });
+
+  describe("updateUserAvatar", () => {
+    it("returns 401 when requester is missing", async () => {
+      const req = { params: { id: "u1" }, file: { filename: "new-avatar.jpg" } };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("Unauthorized");
+    });
+
+    it("returns 403 when non-owner non-pastor tries to update avatar", async () => {
+      MockUser.findById.mockReturnValueOnce({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+
+      const req = {
+        params: { id: "target-id" },
+        userId: "requester-id",
+        file: { filename: "new-avatar.jpg" },
+      };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: insufficient permissions");
+    });
+
+    it("returns 400 when image file is missing", async () => {
+      const req = { params: { id: "u1" }, userId: "u1" };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Image file is required");
+    });
+
+    it("returns 404 when avatar target user does not exist", async () => {
+      MockUser.findById.mockResolvedValue(null);
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        file: { filename: "new-avatar.jpg" },
+      };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("updates avatar when requester owns profile", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        avatarUrl: "http://localhost:5000/uploads/old-avatar.jpg",
+        save,
+      });
+
+      const req = {
+        params: { id: "u1" },
+        userId: "u1",
+        file: { filename: "new-avatar.jpg" },
+        protocol: "http",
+        get: jest.fn().mockReturnValue("localhost:5000"),
+      };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe("Profile picture updated successfully");
+      expect(save).toHaveBeenCalled();
+      expect(res.body.user.avatarUrl).toContain("/uploads/new-avatar.jpg");
+    });
+
+    it("updates avatar when requester is pastor editing another user", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "pastor" }),
+        })
+        .mockResolvedValueOnce({
+          _id: "target-id",
+          avatarUrl: "",
+          save,
+        });
+
+      const req = {
+        params: { id: "target-id" },
+        userId: "pastor-id",
+        file: { filename: "new-avatar.jpg" },
+        protocol: "http",
+        get: jest.fn().mockReturnValue("localhost:5000"),
+      };
+      const res = createMockRes();
+
+      await updateUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(save).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteUserAvatar", () => {
+    it("returns 401 when requester is missing", async () => {
+      const req = { params: { id: "u1" } };
+      const res = createMockRes();
+
+      await deleteUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe("Unauthorized");
+    });
+
+    it("returns 403 when non-owner non-pastor tries to delete avatar", async () => {
+      MockUser.findById.mockReturnValueOnce({
+        select: jest.fn().mockResolvedValue({ role: "member" }),
+      });
+      const req = { params: { id: "target-id" }, userId: "requester-id" };
+      const res = createMockRes();
+
+      await deleteUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.message).toBe("Forbidden: insufficient permissions");
+    });
+
+    it("returns 404 when avatar target user does not exist", async () => {
+      MockUser.findById.mockResolvedValue(null);
+      const req = { params: { id: "u1" }, userId: "u1" };
+      const res = createMockRes();
+
+      await deleteUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("clears avatar url when requester owns profile", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        avatarUrl: "http://localhost:5000/uploads/avatar-123.jpg",
+        save,
+      });
+
+      const req = { params: { id: "u1" }, userId: "u1" };
+      const res = createMockRes();
+
+      await deleteUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toBe("Profile picture removed successfully");
+      expect(save).toHaveBeenCalled();
+      expect(res.body.user.avatarUrl).toBe("");
+    });
+
+    it("allows pastor to remove another user's avatar", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById
+        .mockReturnValueOnce({
+          select: jest.fn().mockResolvedValue({ role: "pastor" }),
+        })
+        .mockResolvedValueOnce({
+          _id: "target-id",
+          avatarUrl: "",
+          save,
+        });
+      const req = { params: { id: "target-id" }, userId: "pastor-id" };
+      const res = createMockRes();
+
+      await deleteUserAvatar(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(save).toHaveBeenCalled();
+    });
   });
 
   describe("getUsersByRole", () => {
@@ -201,9 +485,38 @@ describe("User Controller", () => {
       expect(res.statusCode).toBe(400);
       expect(res.body.message).toContain("Invalid role");
     });
+
+    it("returns users for a valid role", async () => {
+      MockUser.find.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([{ _id: "u1", role: "pastor" }]),
+        }),
+      });
+      const req = { params: { role: "pastor" } };
+      const res = createMockRes();
+
+      await getUsersByRole(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.count).toBe(1);
+    });
   });
 
   describe("getUserByEmail", () => {
+    it("returns user when found", async () => {
+      const user = { _id: "u1", email: "found@example.com" };
+      MockUser.findOne.mockReturnValue({
+        select: jest.fn().mockResolvedValue(user),
+      });
+      const req = { params: { email: "found@example.com" } };
+      const res = createMockRes();
+
+      await getUserByEmail(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.user).toEqual(user);
+    });
+
     it("returns 404 when user is not found", async () => {
       MockUser.findOne.mockReturnValue({
         select: jest.fn().mockResolvedValue(null),
@@ -227,6 +540,17 @@ describe("User Controller", () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.body.message).toContain("Invalid role");
+    });
+
+    it("returns 404 when user is missing during role change", async () => {
+      MockUser.findByIdAndUpdate.mockResolvedValue(null);
+      const req = { params: { id: "missing" }, body: { role: "pastor" } };
+      const res = createMockRes();
+
+      await changeUserRole(req, res);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found");
     });
 
     it("updates role successfully for valid role", async () => {

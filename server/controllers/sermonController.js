@@ -490,6 +490,63 @@ export const addCommentToSermon = async (req, res) => {
   }
 };
 
+export const updateCommentOnSermon = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { text } = req.body;
+    const requesterId = req.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({ success: false, message: "Invalid id" });
+    }
+
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: "Comment text is required" });
+    }
+
+    const [sermon, requester] = await Promise.all([
+      Sermon.findById(id),
+      User.findById(requesterId).select("role"),
+    ]);
+
+    if (!sermon) {
+      return res.status(404).json({ success: false, message: "Sermon not found" });
+    }
+
+    if (!requester) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const comment = sermon.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, message: "Comment not found" });
+    }
+
+    const canModerate = requester.role === "leader" || requester.role === "pastor";
+    const isOwner = comment.userId?.toString() === requesterId;
+
+    if (!canModerate && !isOwner) {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    comment.text = text.trim();
+    await sermon.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment updated",
+      comment,
+    });
+  } catch (error) {
+    console.error("Update comment error:", error);
+    return res.status(500).json({ success: false, message: "Error updating comment", error: error.message });
+  }
+};
+
 export const deleteCommentFromSermon = async (req, res) => {
   try {
     const { id, commentId } = req.params;
