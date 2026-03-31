@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from "../routes/authRoutes.js";
@@ -9,6 +10,7 @@ import contactRoutes from "../routes/contactRoutes.js";
 import sermonRoutes from "../routes/sermonRoutes.js";
 import prayerRoutes from "../routes/prayerRoutes.js";
 import appointmentRoutes from "../routes/appointmentRoutes.js";
+import { getDatabaseHealth } from "./db.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -56,7 +58,21 @@ app.use("/api/appointments", appointmentRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+  const uploadsDir = path.join(__dirname, "..", "uploads");
+  const database = getDatabaseHealth();
+  const uploadsAvailable = fs.existsSync(uploadsDir);
+  const isHealthy = database.status === "up";
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    database,
+    storage: {
+      uploadsStatus: uploadsAvailable ? "available" : "missing",
+      uploadsPath: "/uploads",
+    },
+  });
 });
 
 // 404 handler

@@ -6,6 +6,8 @@
                     "start":  "node server.js",
                     "dev":  "node server.js",
                     "start:api":  "node server/server.js",
-                    "start:client":  "npm run dev --prefix client"
+                    "start:client":  "npm run dev --prefix client",
+                    "backup:db": "node scripts/backup-database.js",
+                    "restore:db": "node scripts/restore-database.js"
                 }
 }
