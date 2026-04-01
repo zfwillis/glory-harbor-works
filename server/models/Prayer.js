@@ -6,6 +6,10 @@ const prayerSchema = new mongoose.Schema({
     ref: "User",
     default: null,
   },
+  isAnonymous: {
+    type: Boolean,
+    default: false,
+  },
   text: {
     type: String,
     required: true,

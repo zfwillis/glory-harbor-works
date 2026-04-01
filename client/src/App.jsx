@@ -12,8 +12,12 @@ import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 import SermonsHub from './pages/SermonsHub'
 import PrayerRequests from './pages/PrayerRequests'
-import Meetings from './pages/Meetings'
+import AdminDash from './pages/AdminDash'
+import TeacherDash from './pages/TeacherDash'
+import PrayerTeamDash from './pages/PrayerTeamDash'
 import PastorDash from './pages/PastorDash'
+import Meetings from './pages/Meetings'
+import ContactSubmissions from './pages/ContactSubmissions'
 
 function App() {
   return (
@@ -46,18 +50,50 @@ function App() {
                 }
               />
               <Route
-                path="/meetings"
+                path="/admin"
                 element={
-                  <ProtectedRoute>
-                    <Meetings />
+                  <ProtectedRoute roles={["admin", "pastor", "leader"]}>
+                    <AdminDash />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher-dashboard"
+                element={
+                  <ProtectedRoute roles={["teacher", "admin", "pastor", "leader"]}>
+                    <TeacherDash />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/prayer-team-dashboard"
+                element={
+                  <ProtectedRoute roles={["prayer_team", "admin", "pastor", "leader"]}>
+                    <PrayerTeamDash />
                   </ProtectedRoute>
                 }
               />
               <Route
                 path="/pastor-dashboard"
                 element={
-                  <ProtectedRoute roles={["pastor"]}>
+                  <ProtectedRoute roles={["pastor", "admin", "leader"]}>
                     <PastorDash />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/contact-submissions"
+                element={
+                  <ProtectedRoute roles={["pastor", "admin", "leader"]}>
+                    <ContactSubmissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/meetings"
+                element={
+                  <ProtectedRoute>
+                    <Meetings />
                   </ProtectedRoute>
                 }
               />

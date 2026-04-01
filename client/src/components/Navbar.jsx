@@ -15,6 +15,8 @@ const Navbar = () => {
     setOpen(false);
   };
 
+  const canOpenAdminDash = normalizedRole === "admin" || normalizedRole === "leader";
+
   return (
     <nav className="sticky top-0 z-50 bg-[#15436b] text-[#f7fff5] shadow-md">
       <div className="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
@@ -52,6 +54,16 @@ const Navbar = () => {
               <li>
                 <Link className="hover:text-[#E7A027]" to="/meetings">Meetings</Link>
               </li>
+              {canOpenAdminDash && (
+                <li>
+                  <Link
+                    to="/admin"
+                    className="px-3 py-1.5 bg-[#8b1e3f] text-white text-sm rounded hover:bg-[#741734] transition-colors font-semibold"
+                  >
+                    Admin
+                  </Link>
+                </li>
+              )}
               {normalizedRole === "pastor" && (
                 <li>
                   <Link className="hover:text-[#E7A027]" to="/pastor-dashboard">Pastor Dashboard</Link>
@@ -135,6 +147,13 @@ const Navbar = () => {
                 {normalizedRole === "pastor" && (
                   <li>
                     <Link to="/pastor-dashboard" onClick={() => setOpen(false)}>Pastor Dashboard</Link>
+                  </li>
+                )}
+                {canOpenAdminDash && (
+                  <li>
+                    <Link to="/admin" onClick={() => setOpen(false)} className="text-[#ff8fb3] font-semibold">
+                      Admin
+                    </Link>
                   </li>
                 )}
                 <li className="flex items-center gap-2 pt-4 border-t border-gray-600">

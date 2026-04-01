@@ -35,6 +35,22 @@ describe("Prayer Routes", () => {
     expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
   });
 
+  it("should register GET /all with auth and role middleware", () => {
+    const routes = getRoutes();
+    const route = routes.find((item) => item.path === "/all" && item.methods.get);
+
+    expect(route).toBeDefined();
+    expect(route.middlewareCount).toBeGreaterThanOrEqual(3);
+  });
+
+  it("should register PATCH /:id/status with auth and role middleware", () => {
+    const routes = getRoutes();
+    const route = routes.find((item) => item.path === "/:id/status" && item.methods.patch);
+
+    expect(route).toBeDefined();
+    expect(route.middlewareCount).toBeGreaterThanOrEqual(3);
+  });
+
   it("should register DELETE /:id with auth middleware", () => {
     const routes = getRoutes();
     const route = routes.find((item) => item.path === "/:id" && item.methods.delete);

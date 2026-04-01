@@ -74,6 +74,7 @@ describe("Prayer Controller", () => {
 
       expect(mockPrayerModel.create).toHaveBeenCalledWith({
         createdBy: "u1",
+        isAnonymous: false,
         text: "Need prayer",
         status: "new",
       });
@@ -81,7 +82,7 @@ describe("Prayer Controller", () => {
       expect(res.body.message).toBe("Prayer request submitted successfully");
     });
 
-    it("creates anonymous prayer request with null createdBy", async () => {
+    it("creates anonymous prayer request while keeping owner", async () => {
       mockPrayerModel.create.mockResolvedValue({ _id: "p2", text: "Anonymous" });
       const req = { userId: "u1", body: { text: "Anonymous", isAnonymous: true } };
       const res = createMockRes();
@@ -89,7 +90,8 @@ describe("Prayer Controller", () => {
       await createPrayerRequest(req, res);
 
       expect(mockPrayerModel.create).toHaveBeenCalledWith({
-        createdBy: null,
+        createdBy: "u1",
+        isAnonymous: true,
         text: "Anonymous",
         status: "new",
       });

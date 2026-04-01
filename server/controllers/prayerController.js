@@ -27,7 +27,9 @@ export const createPrayerRequest = async (req, res) => {
     }
 
     const prayer = await Prayer.create({
-      createdBy: isAnonymous ? null : req.userId,
+      // Always keep owner so users can see/manage all of their requests.
+      createdBy: req.userId,
+      isAnonymous: Boolean(isAnonymous),
       text: text.trim(),
       status: "new",
     });
@@ -110,6 +112,80 @@ export const deletePrayerRequest = async (req, res) => {
     console.error("Delete prayer request error:", error);
     return res.status(500).json({
       message: "Failed to delete prayer request",
+      error: error.message,
+    });
+  }
+};
+
+// Get ALL prayer requests (prayer_team, admin, pastor only)
+export const getAllPrayerRequests = async (req, res) => {
+  try {
+    const prayers = await Prayer.find()
+      .populate("createdBy", "firstName lastName email")
+      .sort({ createdAt: -1 });
+
+    const sanitized = prayers.map((prayer) => {
+      if (!prayer.isAnonymous) {
+        return prayer;
+      }
+
+      const asObject = prayer.toObject();
+      asObject.createdBy = null;
+      return asObject;
+    });
+
+    return res.status(200).json({
+      count: sanitized.length,
+      prayers: sanitized,
+    });
+  } catch (error) {
+    console.error("Get all prayer requests error:", error);
+    return res.status(500).json({
+      message: "Failed to load prayer requests",
+      error: error.message,
+    });
+  }
+};
+
+// Update prayer status (prayer_team, admin, pastor only)
+export const updatePrayerStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid prayer request id" });
+    }
+
+    const validStatuses = ["new", "in_progress", "answered"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+      });
+    }
+
+    const prayer = await Prayer.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    ).populate("createdBy", "firstName lastName email");
+
+    if (!prayer) {
+      return res.status(404).json({ message: "Prayer request not found" });
+    }
+
+    const sanitizedPrayer = prayer.isAnonymous
+      ? { ...prayer.toObject(), createdBy: null }
+      : prayer;
+
+    return res.status(200).json({
+      message: "Prayer status updated successfully",
+      prayer: sanitizedPrayer,
+    });
+  } catch (error) {
+    console.error("Update prayer status error:", error);
+    return res.status(500).json({
+      message: "Failed to update prayer status",
       error: error.message,
     });
   }

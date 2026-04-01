@@ -83,20 +83,14 @@ export default function PrayerRequests() {
       }
 
       const createdPrayer = data?.prayer;
-      if (createdPrayer?.createdBy) {
+      if (createdPrayer?._id) {
         setRequests((prev) => [createdPrayer, ...prev]);
       }
 
-      setMessage(
-        isAnonymous
-          ? "Prayer request submitted successfully. Anonymous requests are not shown in your personal list."
-          : "Prayer request submitted successfully."
-      );
+      setMessage("Prayer request submitted successfully.");
       setText("");
       setIsAnonymous(false);
-      if (!isAnonymous) {
-        await loadPrayerRequests();
-      }
+      await loadPrayerRequests();
     } catch (err) {
       setError(err.message || "Failed to submit prayer request.");
     } finally {
@@ -255,7 +249,7 @@ export default function PrayerRequests() {
         {loadingRequests && <p className="mt-4 text-gray-600">Loading your requests...</p>}
 
         {!loadingRequests && requests.length === 0 && (
-          <p className="mt-4 text-gray-600">You have not submitted any non-anonymous prayer requests yet.</p>
+          <p className="mt-4 text-gray-600">You have not submitted any prayer requests yet.</p>
         )}
 
         {!loadingRequests && requests.length > 0 && (
@@ -314,6 +308,7 @@ export default function PrayerRequests() {
                   </div>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                  {request.isAnonymous && <span>Anonymous submission</span>}
                   <span>Status: {request.status}</span>
                   <span>
                     Submitted: {new Date(request.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
