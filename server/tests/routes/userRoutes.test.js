@@ -59,12 +59,12 @@ describe("User Routes", () => {
     expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
   });
 
-  it("should register PATCH /:id/role with auth middleware", () => {
+  it("should register PATCH /:id/role with auth and role middleware", () => {
     const routes = getRoutes();
     const route = routes.find((item) => item.path === "/:id/role" && item.methods.patch);
 
     expect(route).toBeDefined();
-    expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
+    expect(route.middlewareCount).toBeGreaterThanOrEqual(3);
   });
 
   it("should register PATCH /:id/password with auth middleware", () => {

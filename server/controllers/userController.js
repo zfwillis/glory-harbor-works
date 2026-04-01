@@ -224,7 +224,7 @@ export const updateUser = async (req, res) => {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
         ...(status && { status }),
-        ...(availability && { availability })
+        ...(availability !== undefined && { availability })
       },
       { returnDocument: 'after', runValidators: true }
     );
@@ -319,14 +319,15 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Authorization: only the owner or a pastor can delete
+    // Authorization: only the owner, admin, leader, or pastor can delete
     const requesterId = req.userId;
     if (!requesterId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const requester = await User.findById(requesterId).select('role');
-    if (requesterId !== id && requester?.role !== 'pastor') {
+    const canDeleteOthers = ["pastor", "admin", "leader"].includes(requester?.role);
+    if (requesterId !== id && !canDeleteOthers) {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
     }
 
@@ -465,7 +466,7 @@ export const getUsersByRole = async (req, res) => {
     const { role } = req.params;
 
     // Validate role
-    const validRoles = ["member", "leader", "pastor"];
+    const validRoles = ["member", "leader", "admin", "pastor", "teacher", "prayer_team"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -535,7 +536,7 @@ export const changeUserRole = async (req, res) => {
     const { role } = req.body;
 
     // Validate role
-    const validRoles = ["member", "leader", "pastor"];
+    const validRoles = ["member", "leader", "admin", "pastor", "teacher", "prayer_team"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,

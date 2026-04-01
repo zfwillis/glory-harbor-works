@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .env
 backups/
+# Test coverage artifacts
+coverage/
+server/coverage/

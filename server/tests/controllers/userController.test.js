@@ -623,7 +623,7 @@ describe("User Controller", () => {
 
   describe("getUsersByRole", () => {
     it("returns 400 for invalid role", async () => {
-      const req = { params: { role: "admin" } };
+      const req = { params: { role: "super_admin" } };
       const res = createMockRes();
 
       await getUsersByRole(req, res);
@@ -679,7 +679,7 @@ describe("User Controller", () => {
 
   describe("changeUserRole", () => {
     it("returns 400 for invalid role", async () => {
-      const req = { params: { id: "u1" }, body: { role: "admin" } };
+      const req = { params: { id: "u1" }, body: { role: "super_admin" } };
       const res = createMockRes();
 
       await changeUserRole(req, res);

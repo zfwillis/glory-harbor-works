@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["member", "leader", "pastor"],
+      enum: ["member", "leader", "admin", "pastor", "teacher", "prayer_team"],
       default: "member",
       required: true
     },
