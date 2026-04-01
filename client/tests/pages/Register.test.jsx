@@ -40,7 +40,6 @@ describe('Register Component', () => {
     expect(screen.getByLabelText(/^Email$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Confirm Password/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Role/i)).toBeInTheDocument();
   });
 
   it('should show error if passwords do not match', async () => {
@@ -155,40 +154,10 @@ describe('Register Component', () => {
     expect(loginLink.closest('a')).toHaveAttribute('href', '/login');
   });
 
-  it('should allow selecting different roles', () => {
+  it('should not render role or registration code fields', () => {
     renderRegister();
 
-    const roleSelect = screen.getByLabelText(/Role/i);
-    
-    fireEvent.change(roleSelect, { target: { value: 'leader' } });
-    expect(roleSelect.value).toBe('leader');
-
-    fireEvent.change(roleSelect, { target: { value: 'pastor' } });
-    expect(roleSelect.value).toBe('pastor');
-  });
-
-  it('should show registration code field for leader role', () => {
-    renderRegister();
-
-    const roleSelect = screen.getByLabelText(/Role/i);
-    
-    // Should not show code field initially
+    expect(screen.queryByLabelText(/Role/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Registration Code/i)).not.toBeInTheDocument();
-
-    // Change to leader
-    fireEvent.change(roleSelect, { target: { value: 'leader' } });
-    
-    // Should now show code field
-    expect(screen.getByLabelText(/Registration Code/i)).toBeInTheDocument();
-  });
-
-  it('should show registration code field for pastor role', () => {
-    renderRegister();
-
-    const roleSelect = screen.getByLabelText(/Role/i);
-    
-    fireEvent.change(roleSelect, { target: { value: 'pastor' } });
-    
-    expect(screen.getByLabelText(/Registration Code/i)).toBeInTheDocument();
   });
 });

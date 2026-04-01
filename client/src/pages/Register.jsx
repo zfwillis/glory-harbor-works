@@ -11,8 +11,6 @@ const Register = () => {
     confirmPassword: "",
     firstName: "",
     lastName: "",
-    role: "member",
-    registrationCode: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,12 +40,7 @@ const Register = () => {
     setLoading(true);
 
     const { confirmPassword, ...userData } = formData;
-    
-    // Only send registrationCode if role is not member
-    if (userData.role === "member") {
-      delete userData.registrationCode;
-    }
-    
+
     const result = await register(userData);
 
     if (result.success) {
@@ -154,45 +147,6 @@ const Register = () => {
               placeholder="Re-enter password"
             />
           </div>
-
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#15436b] focus:border-transparent"
-            >
-              <option value="member">Member</option>
-              <option value="leader">Leader</option>
-              <option value="pastor">Pastor</option>
-            </select>
-          </div>
-
-          {/* Registration Code - only show for leader/pastor */}
-          {(formData.role === "leader" || formData.role === "pastor") && (
-            <div>
-              <label htmlFor="registrationCode" className="block text-sm font-medium text-gray-700 mb-1">
-                Registration Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="registrationCode"
-                name="registrationCode"
-                value={formData.registrationCode}
-                onChange={handleChange}
-                required={formData.role !== "member"}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#15436b] focus:border-transparent"
-                placeholder="Enter registration code"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Contact an administrator for the {formData.role} registration code
-              </p>
-            </div>
-          )}
 
           <button
             type="submit"
