@@ -3,537 +3,305 @@ import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const emptyForm = {
-  pastorId: "",
-  scheduledFor: "",
-  location: "",
-  notes: "",
+const createEmbedUrl = (schedulingUrl = "") => {
+  if (!schedulingUrl) {
+    return "";
+  }
+
+  try {
+    const url = new URL(schedulingUrl);
+    url.searchParams.set("hide_event_type_details", "1");
+    url.searchParams.set("hide_gdpr_banner", "1");
+    return url.toString();
+  } catch {
+    return schedulingUrl;
+  }
 };
 
-const formatMeetingDate = (value) => {
+const formatDateTime = (value) => {
   if (!value) {
-    return "";
+    return "Date unavailable";
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Date unavailable";
   }
 
-  return date.toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
+  return date.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
-};
-
-const getMinutesFromTimeString = (value = "") => {
-  const [hours, minutes] = String(value).split(":").map(Number);
-
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return -1;
-  }
-
-  return hours * 60 + minutes;
-};
-
-const isWithinPastorAvailability = (scheduledForValue, availability = []) => {
-  if (!scheduledForValue) {
-    return true;
-  }
-
-  const scheduledFor = new Date(scheduledForValue);
-  if (Number.isNaN(scheduledFor.getTime())) {
-    return false;
-  }
-
-  if (!Array.isArray(availability) || availability.length === 0) {
-    return false;
-  }
-
-  const dayName = scheduledFor.toLocaleDateString("en-US", { weekday: "long" });
-  const scheduledMinutes = scheduledFor.getHours() * 60 + scheduledFor.getMinutes();
-
-  return availability.some((slot) => {
-    if (!slot || slot.day !== dayName) {
-      return false;
-    }
-
-    const startMinutes = getMinutesFromTimeString(slot.start);
-    const endMinutes = getMinutesFromTimeString(slot.end);
-
-    if (startMinutes < 0 || endMinutes < 0) {
-      return false;
-    }
-
-    return scheduledMinutes >= startMinutes && scheduledMinutes <= endMinutes;
-  });
-};
-
-const getStatusClasses = (status = "") => {
-  const normalizedStatus = String(status).toLowerCase();
-
-  if (normalizedStatus === "approved") {
-    return "border-green-200 bg-green-50 text-green-700";
-  }
-
-  if (normalizedStatus === "declined") {
-    return "border-amber-200 bg-amber-50 text-amber-800";
-  }
-
-  return "border-blue-200 bg-blue-50 text-blue-700";
 };
 
 export default function Meetings() {
   const { token, user } = useAuth();
-  const [form, setForm] = useState(emptyForm);
-  const [pastors, setPastors] = useState([]);
-  const [meetings, setMeetings] = useState([]);
+  const [eventTypes, setEventTypes] = useState([]);
+  const [calendlyMeetings, setCalendlyMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingPastors, setLoadingPastors] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState("");
-  const [editingMeetingId, setEditingMeetingId] = useState("");
-  const [message, setMessage] = useState("");
+  const [meetingsLoading, setMeetingsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [availabilityModalMessage, setAvailabilityModalMessage] = useState("");
+  const [meetingsError, setMeetingsError] = useState("");
+  const [selectedEventUri, setSelectedEventUri] = useState("");
 
-  const selectedPastor = useMemo(
-    () => pastors.find((pastor) => pastor._id === form.pastorId || pastor.id === form.pastorId),
-    [form.pastorId, pastors]
+  const selectedEventType = useMemo(
+    () => eventTypes.find((eventType) => eventType.uri === selectedEventUri) || eventTypes[0] || null,
+    [eventTypes, selectedEventUri]
   );
-  const selectedPastorAvailability = Array.isArray(selectedPastor?.availability)
-    ? selectedPastor.availability
-    : [];
 
-  const loadPastors = async () => {
-    try {
-      setLoadingPastors(true);
-      const response = await fetch(`${API_URL}/users/role/pastor`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not load pastors");
-      }
-
-      setPastors(Array.isArray(data.users) ? data.users : []);
-    } catch (err) {
-      setError(err.message || "Failed to load pastors.");
-    } finally {
-      setLoadingPastors(false);
-    }
-  };
-
-  const loadMeetings = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/appointments`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not load meetings");
-      }
-
-      setMeetings(Array.isArray(data.appointments) ? data.appointments : []);
-    } catch (err) {
-      setError(err.message || "Failed to load meetings.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const normalizedRole = String(user?.role || "").trim().toLowerCase();
+  const isPastoralAccount = normalizedRole === "pastor";
+  const isMemberAccount = normalizedRole === "member";
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
-    loadPastors();
-    loadMeetings();
-  }, [token]);
+    const loadCalendlyData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        setMeetingsLoading(true);
+        setMeetingsError("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    setError("");
-    setMessage("");
-  };
+        const [eventTypesResult, meetingsResult] = await Promise.allSettled([
+          fetch(`${API_URL}/calendly/event-types`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/calendly/meetings`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditingMeetingId("");
-  };
+        if (eventTypesResult.status !== "fulfilled") {
+          throw new Error("Could not load Calendly event types.");
+        }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMessage("");
+        const eventTypeResponse = eventTypesResult.value;
+        const eventTypeData = await eventTypeResponse.json();
+        if (!eventTypeResponse.ok) {
+          throw new Error(eventTypeData.message || "Could not load Calendly events");
+        }
 
-    if (!form.pastorId) {
-      setError("Please choose a pastor.");
-      return;
-    }
+        const availableEventTypes = Array.isArray(eventTypeData.eventTypes) ? eventTypeData.eventTypes : [];
+        setEventTypes(availableEventTypes);
 
-    if (!form.scheduledFor) {
-      setError("Please choose a meeting date and time.");
-      return;
-    }
+        if (meetingsResult.status === "fulfilled") {
+          const meetingsResponse = meetingsResult.value;
+          const meetingsData = await meetingsResponse.json();
 
-    if (!selectedPastor) {
-      setError("Please choose a valid pastor.");
-      return;
-    }
+          if (!meetingsResponse.ok) {
+            setMeetingsError(meetingsData.message || "Could not load meetings right now.");
+            setCalendlyMeetings([]);
+          } else {
+            const availableMeetings = Array.isArray(meetingsData.meetings) ? meetingsData.meetings : [];
+            setCalendlyMeetings(availableMeetings);
+          }
+        } else {
+          setMeetingsError("Could not load meetings right now.");
+          setCalendlyMeetings([]);
+        }
 
-    if (!isWithinPastorAvailability(form.scheduledFor, selectedPastorAvailability)) {
-      setAvailabilityModalMessage(
-        "You can't schedule this meeting because the selected time is outside the pastor's availability."
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const endpoint = editingMeetingId
-        ? `${API_URL}/appointments/${editingMeetingId}`
-        : `${API_URL}/appointments`;
-      const method = editingMeetingId ? "PATCH" : "POST";
-
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not save meeting");
+        if (availableEventTypes.length > 0) {
+          setSelectedEventUri(availableEventTypes[0].uri || "");
+        }
+      } catch (fetchError) {
+        setError(fetchError.message || "Failed to load Calendly data.");
+      } finally {
+        setLoading(false);
+        setMeetingsLoading(false);
       }
+    };
 
-      setMessage(editingMeetingId ? "Meeting updated successfully." : "Meeting scheduled successfully.");
-      resetForm();
-      await loadMeetings();
-    } catch (err) {
-      setError(err.message || "Failed to save meeting.");
-    } finally {
-      setSaving(false);
-    }
-  };
+    loadCalendlyData();
+  }, [token, normalizedRole]);
 
-  const startEditing = (meeting) => {
-    setEditingMeetingId(meeting._id);
-    setForm({
-      pastorId: meeting.pastorId?._id || meeting.pastorId?.id || "",
-      scheduledFor: meeting.scheduledFor ? new Date(meeting.scheduledFor).toISOString().slice(0, 16) : "",
-      location: meeting.location || "",
-      notes: meeting.notes || "",
-    });
-    setError("");
-    setMessage("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const selectedSchedulingUrl = selectedEventType?.schedulingUrl || "";
+  const embedUrl = createEmbedUrl(selectedSchedulingUrl);
+  const showPastorVictorCard = !isPastoralAccount;
 
-  const cancelEditing = () => {
-    resetForm();
-    setError("");
-    setMessage("");
-  };
+  const getCalendlyMeetingCounterparty = (meeting) => {
+    const hosts = Array.isArray(meeting.hosts) ? meeting.hosts : [];
+    const invitees = Array.isArray(meeting.invitees) ? meeting.invitees : [];
 
-  const deleteMeeting = async (meetingId) => {
-    const shouldDelete = window.confirm("Cancel this meeting?");
-    if (!shouldDelete) {
-      return;
+    if (isPastoralAccount) {
+      return invitees.map((invitee) => invitee.name || invitee.email).filter(Boolean).join(", ") || "Member";
     }
 
-    try {
-      setDeletingId(meetingId);
-      setError("");
-      setMessage("");
-
-      const response = await fetch(`${API_URL}/appointments/${meetingId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not cancel meeting");
-      }
-
-      setMeetings((prev) => prev.filter((meeting) => meeting._id !== meetingId));
-      if (editingMeetingId === meetingId) {
-        resetForm();
-      }
-      setMessage("Meeting cancelled successfully.");
-    } catch (err) {
-      setError(err.message || "Failed to cancel meeting.");
-    } finally {
-      setDeletingId("");
-    }
+    return hosts.map((host) => host.name || host.email).filter(Boolean).join(", ") || "Pastor";
   };
 
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
-      {availabilityModalMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-xl font-semibold text-gray-900">Scheduling Unavailable</h2>
-            <p className="mt-3 text-sm text-gray-700">{availabilityModalMessage}</p>
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setAvailabilityModalMessage("")}
-                className="rounded-lg bg-[#15436b] px-5 py-2.5 font-semibold text-white transition hover:bg-[#1b5385]"
-              >
-                OK
-              </button>
+    <section className="mx-auto max-w-6xl px-4 py-12">
+      <div className="max-w-3xl">
+        <h1 className="text-3xl font-bold text-[#15436b]">Pastoral Meetings</h1>
+        <p className="mt-3 text-gray-700">
+          {isPastoralAccount
+            ? user?.firstName
+              ? `Welcome, Pastor ${user.firstName}! View your scheduled Calendly meetings here.`
+              : "Welcome, Pastor! View your scheduled Calendly meetings here."
+            : user?.firstName
+            ? `Welcome, ${user.firstName}! Book and manage your scheduled meetings here.`
+            : "Welcome. Book and manage your scheduled meetings here."}
+        </p>
+
+        {showPastorVictorCard && (
+          <div className="mt-5 flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <img
+              src="/pastorvictor.jpg"
+              alt="Pastor Victor"
+              className="h-16 w-16 rounded-full object-cover ring-2 ring-[#15436b]/20"
+              loading="lazy"
+            />
+            <div>
+              <p className="text-lg font-semibold text-[#15436b]">Schedule a Meeting with Pastor Victor</p>
             </div>
           </div>
-        </div>
-      )}
-
-      <div className="max-w-3xl">
-        <h1 className="text-3xl font-bold text-[#15436b]">Meetings</h1>
-        <p className="mt-3 text-gray-700">
-          Schedule a one-on-one meeting with a pastor, then review, update, or cancel it here.
-        </p>
+        )}
       </div>
 
-      {message && (
-        <div className="mt-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr,0.9fr]">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {editingMeetingId ? "Update Meeting" : "Schedule Meeting"}
-          </h2>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[360px,1fr]">
+        <aside className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-900">Calendly Meeting Types</h2>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            <div>
-              <label htmlFor="pastorId" className="mb-1 block text-sm font-medium text-gray-700">
-                Pastor
-              </label>
-              <select
-                id="pastorId"
-                name="pastorId"
-                value={form.pastorId}
-                onChange={handleChange}
-                disabled={loadingPastors}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
-                required
+          {loading && <p className="mt-4 text-gray-600">Loading Calendly meeting types...</p>}
+
+          {!loading && eventTypes.length === 0 && (
+            <p className="mt-4 text-sm text-gray-600">
+              No Calendly event types are available yet. Ask an admin to configure Calendly event types.
+            </p>
+          )}
+
+          {!loading && eventTypes.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {eventTypes.map((eventType) => {
+                const isSelected = selectedEventType?.uri === eventType.uri;
+
+                return (
+                  <button
+                    key={eventType.uri || eventType.slug}
+                    type="button"
+                    onClick={() => setSelectedEventUri(eventType.uri)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                      isSelected
+                        ? "border-[#15436b] bg-[#eaf3fb]"
+                        : "border-gray-200 bg-white hover:border-[#15436b]/40 hover:bg-[#f7fbff]"
+                    }`}
+                  >
+                    <p className="font-semibold text-[#15436b]">{eventType.name}</p>
+                    {eventType.duration && <p className="mt-1 text-sm text-gray-600">{eventType.duration} minutes</p>}
+                    {eventType.hostName && <p className="mt-1 text-sm text-gray-600">Scheduling with: {eventType.hostName}</p>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedSchedulingUrl && (
+            <div className="mt-5 space-y-2">
+              <a
+                className="inline-flex w-full items-center justify-center rounded-lg bg-[#15436b] px-4 py-2.5 font-semibold text-white transition hover:bg-[#1b5385]"
+                href={selectedSchedulingUrl}
+                target="_blank"
+                rel="noreferrer"
               >
-                <option value="">{loadingPastors ? "Loading pastors..." : "Select a pastor"}</option>
-                {pastors.map((pastor) => (
-                  <option key={pastor._id || pastor.id} value={pastor._id || pastor.id}>
-                    {pastor.firstName} {pastor.lastName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="scheduledFor" className="mb-1 block text-sm font-medium text-gray-700">
-                Date and Time
-              </label>
-              <input
-                id="scheduledFor"
-                name="scheduledFor"
-                type="datetime-local"
-                value={form.scheduledFor}
-                onChange={handleChange}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
-                required
-              />
-              {selectedPastor && selectedPastorAvailability.length === 0 && (
-                <p className="mt-1 text-xs text-amber-700">
-                  This pastor has not added availability yet, so you cannot request a meeting time.
-                </p>
-              )}
-              {selectedPastor &&
-                selectedPastorAvailability.length > 0 &&
-                form.scheduledFor &&
-                !isWithinPastorAvailability(form.scheduledFor, selectedPastorAvailability) && (
-                  <p className="mt-1 text-xs text-red-600">
-                    The selected time is outside this pastor&apos;s availability.
-                  </p>
-                )}
-            </div>
-
-            <div>
-              <label htmlFor="location" className="mb-1 block text-sm font-medium text-gray-700">
-                Location
-              </label>
-              <input
-                id="location"
-                name="location"
-                value={form.location}
-                onChange={handleChange}
-                placeholder="Church office, phone, Zoom, etc."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
-                maxLength={120}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="notes" className="mb-1 block text-sm font-medium text-gray-700">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={4}
-                value={form.notes}
-                onChange={handleChange}
-                placeholder="Share any context for the meeting."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
-                maxLength={1000}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={
-                  saving ||
-                  loadingPastors ||
-                  (selectedPastor && selectedPastorAvailability.length === 0)
-                }
-                className="rounded-lg bg-[#15436b] px-5 py-2.5 font-semibold text-white transition hover:bg-[#1b5385] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {saving ? "Saving..." : editingMeetingId ? "Save Changes" : "Schedule Meeting"}
-              </button>
-              {editingMeetingId && (
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  disabled={saving}
-                  className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+                Open Booking Page
+              </a>
+              {isPastoralAccount && (
+                <a
+                  className="inline-flex w-full items-center justify-center rounded-lg border border-[#15436b] px-4 py-2.5 font-semibold text-[#15436b] transition hover:bg-[#eaf3fb]"
+                  href="https://calendly.com/app/availability"
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  Cancel Edit
-                </button>
+                  Set Availability in Calendly
+                </a>
               )}
-            </div>
-          </form>
-        </div>
-
-        <aside className="rounded-2xl border border-gray-200 bg-[#f8fbfd] p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">Selected Pastor</h2>
-          {!selectedPastor ? (
-            <p className="mt-3 text-gray-600">Choose a pastor to see who you are scheduling with.</p>
-          ) : (
-            <div className="mt-4">
-              <p className="text-lg font-semibold text-[#15436b]">
-                {selectedPastor.firstName} {selectedPastor.lastName}
-              </p>
-              {selectedPastor.email && <p className="mt-1 text-sm text-gray-600">{selectedPastor.email}</p>}
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-gray-900">Availability</p>
-                {selectedPastorAvailability.length === 0 ? (
-                  <p className="mt-1 text-sm text-gray-600">No availability has been added yet.</p>
-                ) : (
-                  <ul className="mt-2 space-y-1 text-sm text-gray-700">
-                    {selectedPastorAvailability.map((slot, index) => (
-                      <li key={`${slot.day}-${slot.start}-${slot.end}-${index}`}>
-                        {slot.day}: {slot.start} - {slot.end}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <p className="mt-3 text-sm text-gray-600">
-                New or edited meetings are submitted with a <span className="font-semibold">pending</span> status.
-              </p>
             </div>
           )}
         </aside>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <h2 className="text-xl font-semibold text-gray-900">Calendly Booking Preview</h2>
+
+          {selectedEventType?.hostName && (
+            <p className="mt-2 text-sm text-gray-600">
+              You are scheduling with <span className="font-semibold text-gray-800">{selectedEventType.hostName}</span>.
+            </p>
+          )}
+
+          {!loading && !selectedSchedulingUrl && (
+            <p className="mt-3 text-sm text-gray-600">Select a meeting type to preview what members can book.</p>
+          )}
+
+          {selectedSchedulingUrl && (
+            <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
+              <iframe title="Calendly Scheduler" src={embedUrl} className="h-[760px] w-full" loading="lazy" />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900">Your Scheduled Meetings</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{isPastoralAccount ? "My Calendly Meetings" : "My Scheduled Meetings"}</h2>
 
-        {loading && <p className="mt-4 text-gray-600">Loading your meetings...</p>}
-
-        {!loading && meetings.length === 0 && (
-          <p className="mt-4 text-gray-600">You have not scheduled any meetings yet.</p>
+        {meetingsError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{meetingsError}</div>
         )}
 
-        {!loading && meetings.length > 0 && (
-          <div className="mt-4 space-y-4">
-            {meetings.map((meeting) => {
-              const pastor = meeting.pastorId || {};
-              const pastorName = [pastor.firstName, pastor.lastName].filter(Boolean).join(" ").trim() || "The pastor";
+        {meetingsLoading && <p className="mt-4 text-gray-600">Loading your meetings...</p>}
+
+        {!meetingsLoading && calendlyMeetings.length === 0 && (
+          <p className="mt-4 text-sm text-gray-600">
+            {isPastoralAccount ? "No Calendly meetings are currently scheduled with you." : "You do not have any scheduled Calendly meetings yet."}
+          </p>
+        )}
+
+        {!meetingsLoading && calendlyMeetings.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {calendlyMeetings.map((meeting) => {
+              const memberUpdateUrl = meeting.memberRescheduleUrl || meeting.rescheduleUrl || "";
+              const memberDeleteUrl = meeting.memberCancelUrl || meeting.cancelUrl || "";
 
               return (
-                <article key={meeting._id} className="rounded-xl border border-gray-200 bg-[#f8fbfd] p-4">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-lg font-semibold text-[#15436b]">
-                        {pastor.firstName} {pastor.lastName}
-                      </p>
-                      <p className="mt-1 text-sm text-gray-700">
-                        {formatMeetingDate(meeting.scheduledFor)}
-                      </p>
-                      {meeting.topic && <p className="mt-2 text-sm text-gray-800">Topic: {meeting.topic}</p>}
-                      {meeting.location && (
-                        <p className="mt-1 text-sm text-gray-800">Location: {meeting.location}</p>
-                      )}
-                      {meeting.notes && (
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{meeting.notes}</p>
-                      )}
-                      {meeting.status === "declined" && (
-                        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                          {pastorName} has declined your meeting. You can edit it and send a new request, or cancel it.
-                        </div>
-                      )}
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-sm font-semibold capitalize ${getStatusClasses(
-                            meeting.status
-                          )}`}
+                <article key={meeting.uri || `${meeting.startTime}-${meeting.name}`} className="rounded-xl border border-gray-200 p-4">
+                  <p className="font-semibold text-[#15436b]">{meeting.name || "Meeting"}</p>
+                  <p className="mt-1 text-sm text-gray-700">{formatDateTime(meeting.startTime)}</p>
+                  <p className="mt-1 text-sm text-gray-700">
+                    {isPastoralAccount ? "Scheduled by" : "Meeting with"}: {getCalendlyMeetingCounterparty(meeting)}
+                  </p>
+                  {meeting.status && <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Status: {meeting.status}</p>}
+                  {isMemberAccount && (memberUpdateUrl || memberDeleteUrl) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {memberUpdateUrl && (
+                        <a
+                          href={memberUpdateUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50"
                         >
-                          Status: {meeting.status}
-                        </span>
-                        <span>Requested: {formatMeetingDate(meeting.createdAt)}</span>
-                      </div>
+                          Reschedule
+                        </a>
+                      )}
+                      {memberDeleteUrl && (
+                        <a
+                          href={memberDeleteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
+                        >
+                          Cancel Meeting
+                        </a>
+                      )}
                     </div>
-
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => startEditing(meeting)}
-                        disabled={deletingId === meeting._id}
-                        className="rounded-lg border border-[#15436b] px-3 py-2 text-sm font-semibold text-[#15436b] transition hover:bg-[#eaf3fb] disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteMeeting(meeting._id)}
-                        disabled={deletingId === meeting._id}
-                        className="rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {deletingId === meeting._id ? "Cancelling..." : "Cancel"}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </article>
               );
             })}
