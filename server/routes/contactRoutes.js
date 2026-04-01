@@ -12,7 +12,7 @@ const router = express.Router();
 router.post("/", submitContactForm);
 
 // Protected routes - admin/pastor only
-router.get("/", protect, authorize("pastor", "leader"), getContactSubmissions);
-router.patch("/:id/status", protect, authorize("pastor", "leader"), updateContactStatus);
+router.get("/", protect, authorize("pastor", "admin", "leader"), getContactSubmissions);
+router.patch("/:id/status", protect, authorize("pastor", "admin", "leader"), updateContactStatus);
 
 export default router;

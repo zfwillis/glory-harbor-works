@@ -19,7 +19,7 @@ router.get("/", optionalAuthMiddleware, getSermons);
 router.post(
 	"/",
 	authMiddleware,
-	authorize("leader", "pastor"),
+	authorize("leader", "admin", "pastor", "teacher"),
 	uploadSermonAssets.fields([
 		{ name: "image", maxCount: 1 },
 		{ name: "media", maxCount: 1 },
@@ -29,14 +29,14 @@ router.post(
 router.patch(
 	"/:id",
 	authMiddleware,
-	authorize("leader", "pastor"),
+	authorize("leader", "admin", "pastor", "teacher"),
 	uploadSermonAssets.fields([
 		{ name: "image", maxCount: 1 },
 		{ name: "media", maxCount: 1 },
 	]),
 	updateSermon
 );
-router.delete("/:id", authMiddleware, authorize("leader", "pastor"), deleteSermon);
+router.delete("/:id", authMiddleware, authorize("leader", "admin", "pastor", "teacher"), deleteSermon);
 router.post("/:id/comments", authMiddleware, addCommentToSermon);
 router.patch("/:id/comments/:commentId", authMiddleware, updateCommentOnSermon);
 router.delete("/:id/comments/:commentId", authMiddleware, deleteCommentFromSermon);
