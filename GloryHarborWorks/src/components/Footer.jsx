@@ -7,7 +7,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* About */}
           <div>
-            <h3 className="text-lg font-bold mb-3">Glory Harbor Works</h3>
+            <h3 className="text-lg font-bold mb-3">Glory Harbor</h3>
             <p className="text-sm opacity-75">
               A welcoming community devoted to spreading the Gospel and spiritual growth.
             </p>

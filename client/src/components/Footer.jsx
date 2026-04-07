@@ -48,7 +48,9 @@ const Footer = () => {
 
         <div className="text-center text-sm opacity-75">
           <p>© {new Date().getFullYear()} Glory Harbor Works. All rights reserved.</p>
-          <p className="mt-2">Contact: stgciglory@gmail.com | (667) 310-1970</p>
+          <p className="mt-2">
+            Contact: <a href="mailto:stgciglory@gmail.com" className="hover:opacity-100 underline underline-offset-2">stgciglory@gmail.com</a> | <a href="tel:+16673101970" className="hover:opacity-100 underline underline-offset-2">(667) 310-1970</a>
+          </p>
         </div>
       </div>
     </footer>

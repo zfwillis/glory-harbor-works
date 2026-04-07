@@ -6,7 +6,7 @@ export default function ContactSubmissions() {
   const { token } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#f7fff5] py-10 px-4">
+    <div className="min-h-screen bg-white py-10 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#15436b]">Contact Submissions</h1>

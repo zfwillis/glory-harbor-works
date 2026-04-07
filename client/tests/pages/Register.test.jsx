@@ -45,6 +45,16 @@ describe('Register Component', () => {
   it('should show error if passwords do not match', async () => {
     renderRegister();
 
+    fireEvent.change(screen.getByLabelText(/First Name/i), {
+      target: { value: 'Jane' },
+    });
+    fireEvent.change(screen.getByLabelText(/Last Name/i), {
+      target: { value: 'Doe' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Email$/i), {
+      target: { value: 'jane@example.com' },
+    });
+
     fireEvent.change(screen.getByLabelText(/^Password$/i), {
       target: { value: 'password123' },
     });
@@ -61,6 +71,16 @@ describe('Register Component', () => {
 
   it('should show error if password is too short', async () => {
     renderRegister();
+
+    fireEvent.change(screen.getByLabelText(/First Name/i), {
+      target: { value: 'Jane' },
+    });
+    fireEvent.change(screen.getByLabelText(/Last Name/i), {
+      target: { value: 'Doe' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Email$/i), {
+      target: { value: 'jane@example.com' },
+    });
 
     fireEvent.change(screen.getByLabelText(/^Password$/i), {
       target: { value: '12345' },

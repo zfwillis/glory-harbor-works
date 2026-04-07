@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import DashboardSwitcher from "../components/DashboardSwitcher";
-import ContactSubmissionsPanel from "../components/ContactSubmissionsPanel";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const ROLES = ["member", "admin", "pastor", "teacher", "prayer_team"];
+const ROLE_STATS = ["total", ...ROLES];
 
 const roleLabel = (role) => {
   const labels = {
+    total: "Total",
     member: "Member",
     admin: "Admin",
     pastor: "Pastor",
@@ -147,7 +148,7 @@ export default function AdminDash() {
   const deleteTarget = users.find((u) => u._id === deleteConfirm);
 
   return (
-    <div className="min-h-screen bg-[#f7fff5] py-10 px-4">
+    <div className="min-h-screen bg-white py-10 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -160,9 +161,9 @@ export default function AdminDash() {
         <DashboardSwitcher />
 
         {/* Stats bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-          {ROLES.map((role) => {
-            const count = users.filter((u) => u.role === role).length;
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+          {ROLE_STATS.map((role) => {
+            const count = role === "total" ? users.length : users.filter((u) => u.role === role).length;
             return (
               <div
                 key={role}
@@ -304,7 +305,6 @@ export default function AdminDash() {
           )}
         </div>
 
-        <ContactSubmissionsPanel token={token} limit={6} compact />
       </div>
 
       {/* Delete Confirmation Modal */}

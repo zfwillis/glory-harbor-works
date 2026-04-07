@@ -57,7 +57,7 @@ export default function Contact() {
       <section className="bg-[#15436b] text-white py-12 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
-          <p className="text-lg">We'd love to hear from you. Get in touch with Glory Harbor Works today.</p>
+          <p className="text-lg">We'd love to hear from you. Get in touch with Glory Harbor today.</p>
         </div>
       </section>
 
@@ -71,7 +71,9 @@ export default function Contact() {
                 <FaPhone className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Call Us</h3>
-              <p className="text-gray-600">(667) 310-1970</p>
+              <a href="tel:+16673101970" className="text-gray-600 hover:text-[#15436b] underline underline-offset-2">
+                (667) 310-1970
+              </a>
             </div>
 
             {/* Email */}
@@ -80,7 +82,9 @@ export default function Contact() {
                 <FaEnvelope className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Email</h3>
-              <p className="text-gray-600">stgciglory@gmail.com</p>
+              <a href="mailto:stgciglory@gmail.com" className="text-gray-600 hover:text-[#15436b] underline underline-offset-2">
+                stgciglory@gmail.com
+              </a>
             </div>
 
             {/* Address */}
@@ -89,7 +93,16 @@ export default function Contact() {
                 <FaMapMarkerAlt className="text-2xl text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold mb-2">Visit</h3>
-              <p className="text-gray-600">9004 Harford Road<br />Parkville, MD 21234</p>
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=Glory+Harbor+9004+Harford+Rd%2C+Parkville%2C+MD+21234"
+                target="_blank"
+                rel="noreferrer"
+                className="text-gray-600 hover:text-[#15436b] underline underline-offset-2"
+              >
+                9004 Harford Road
+                <br />
+                Parkville, MD 21234
+              </a>
             </div>
 
             {/* Hours */}
@@ -221,7 +234,7 @@ export default function Contact() {
             <div>
               <h3 className="text-xl font-semibold mb-3 text-blue-600">Visit Us</h3>
               <p className="text-gray-700">
-                Want to visit Glory Harbor Works in person? We'd love to welcome you to our community 
+                Want to visit Glory Harbor in person? We'd love to welcome you to our community 
                 on Sunday mornings!
               </p>
             </div>

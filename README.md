@@ -1,6 +1,6 @@
-# Glory Harbor Works
+# Glory Harbor
 
-Glory Harbor Works is a senior capstone web application for church community management. It includes authentication, profiles, sermons, prayer requests, member meeting scheduling, and pastor-facing scheduling tools such as availability management and meeting approval workflows.
+Glory Harbor is a senior capstone web application for church community management. It includes authentication, profiles, sermons, prayer requests, member meeting scheduling, and pastor-facing scheduling tools such as availability management and meeting approval workflows.
 
 ## Tech Stack
 

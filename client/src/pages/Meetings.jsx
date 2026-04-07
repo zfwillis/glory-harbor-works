@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const CALENDLY_SCHEDULED_EVENTS_URL = "https://calendly.com/app/scheduled_events";
 
 const createEmbedUrl = (schedulingUrl = "") => {
   if (!schedulingUrl) {
@@ -47,6 +48,7 @@ export default function Meetings() {
   const [error, setError] = useState("");
   const [meetingsError, setMeetingsError] = useState("");
   const [selectedEventUri, setSelectedEventUri] = useState("");
+  const [approvedByUri, setApprovedByUri] = useState({});
 
   const selectedEventType = useMemo(
     () => eventTypes.find((eventType) => eventType.uri === selectedEventUri) || eventTypes[0] || null,
@@ -136,6 +138,14 @@ export default function Meetings() {
     return hosts.map((host) => host.name || host.email).filter(Boolean).join(", ") || "Pastor";
   };
 
+  const handleLocalApprove = (meetingUri) => {
+    if (!meetingUri) {
+      return;
+    }
+
+    setApprovedByUri((prev) => ({ ...prev, [meetingUri]: true }));
+  };
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-12">
       <div className="max-w-3xl">
@@ -167,87 +177,95 @@ export default function Meetings() {
 
       {error && <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[360px,1fr]">
-        <aside className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">Calendly Meeting Types</h2>
+      {!isPastoralAccount && (
+        <div className="mt-8 grid gap-8 lg:grid-cols-[360px,1fr]">
+          <aside className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900">Calendly Meeting Types</h2>
 
-          {loading && <p className="mt-4 text-gray-600">Loading Calendly meeting types...</p>}
+            {loading && <p className="mt-4 text-gray-600">Loading Calendly meeting types...</p>}
 
-          {!loading && eventTypes.length === 0 && (
-            <p className="mt-4 text-sm text-gray-600">
-              No Calendly event types are available yet. Ask an admin to configure Calendly event types.
-            </p>
-          )}
+            {!loading && eventTypes.length === 0 && (
+              <p className="mt-4 text-sm text-gray-600">
+                No Calendly event types are available yet. Ask an admin to configure Calendly event types.
+              </p>
+            )}
 
-          {!loading && eventTypes.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {eventTypes.map((eventType) => {
-                const isSelected = selectedEventType?.uri === eventType.uri;
+            {!loading && eventTypes.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {eventTypes.map((eventType) => {
+                  const isSelected = selectedEventType?.uri === eventType.uri;
 
-                return (
-                  <button
-                    key={eventType.uri || eventType.slug}
-                    type="button"
-                    onClick={() => setSelectedEventUri(eventType.uri)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                      isSelected
-                        ? "border-[#15436b] bg-[#eaf3fb]"
-                        : "border-gray-200 bg-white hover:border-[#15436b]/40 hover:bg-[#f7fbff]"
-                    }`}
-                  >
-                    <p className="font-semibold text-[#15436b]">{eventType.name}</p>
-                    {eventType.duration && <p className="mt-1 text-sm text-gray-600">{eventType.duration} minutes</p>}
-                    {eventType.hostName && <p className="mt-1 text-sm text-gray-600">Scheduling with: {eventType.hostName}</p>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  return (
+                    <button
+                      key={eventType.uri || eventType.slug}
+                      type="button"
+                      onClick={() => setSelectedEventUri(eventType.uri)}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                        isSelected
+                          ? "border-[#15436b] bg-[#eaf3fb]"
+                          : "border-gray-200 bg-white hover:border-[#15436b]/40 hover:bg-[#f7fbff]"
+                      }`}
+                    >
+                      <p className="font-semibold text-[#15436b]">{eventType.name}</p>
+                      {eventType.duration && <p className="mt-1 text-sm text-gray-600">{eventType.duration} minutes</p>}
+                      {eventType.hostName && <p className="mt-1 text-sm text-gray-600">Scheduling with: {eventType.hostName}</p>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-          {selectedSchedulingUrl && (
-            <div className="mt-5 space-y-2">
-              <a
-                className="inline-flex w-full items-center justify-center rounded-lg bg-[#15436b] px-4 py-2.5 font-semibold text-white transition hover:bg-[#1b5385]"
-                href={selectedSchedulingUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Booking Page
-              </a>
-              {isPastoralAccount && (
+            {selectedSchedulingUrl && (
+              <div className="mt-5 space-y-2">
                 <a
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-[#15436b] px-4 py-2.5 font-semibold text-[#15436b] transition hover:bg-[#eaf3fb]"
-                  href="https://calendly.com/app/availability"
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-[#15436b] px-4 py-2.5 font-semibold text-white transition hover:bg-[#1b5385]"
+                  href={selectedSchedulingUrl}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Set Availability in Calendly
+                  Open Booking Page
                 </a>
-              )}
-            </div>
-          )}
-        </aside>
+              </div>
+            )}
+          </aside>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-xl font-semibold text-gray-900">Calendly Booking Preview</h2>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <h2 className="text-xl font-semibold text-gray-900">Calendly Booking Preview</h2>
 
-          {selectedEventType?.hostName && (
-            <p className="mt-2 text-sm text-gray-600">
-              You are scheduling with <span className="font-semibold text-gray-800">{selectedEventType.hostName}</span>.
-            </p>
-          )}
+            {selectedEventType?.hostName && (
+              <p className="mt-2 text-sm text-gray-600">
+                You are scheduling with <span className="font-semibold text-gray-800">{selectedEventType.hostName}</span>.
+              </p>
+            )}
 
-          {!loading && !selectedSchedulingUrl && (
-            <p className="mt-3 text-sm text-gray-600">Select a meeting type to preview what members can book.</p>
-          )}
+            {!loading && !selectedSchedulingUrl && (
+              <p className="mt-3 text-sm text-gray-600">Select a meeting type to preview what members can book.</p>
+            )}
 
-          {selectedSchedulingUrl && (
-            <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
-              <iframe title="Calendly Scheduler" src={embedUrl} className="h-[760px] w-full" loading="lazy" />
-            </div>
-          )}
+            {selectedSchedulingUrl && (
+              <div className="mt-4 overflow-hidden rounded-xl border border-gray-200">
+                <iframe title="Calendly Scheduler" src={embedUrl} className="h-[760px] w-full" loading="lazy" />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {isPastoralAccount && (
+        <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm text-gray-700">
+            This page shows meetings scheduled with you. To adjust your booking windows, update your availability in Calendly.
+          </p>
+          <a
+            className="mt-4 inline-flex items-center justify-center rounded-lg border border-[#15436b] px-4 py-2.5 font-semibold text-[#15436b] transition hover:bg-[#eaf3fb]"
+            href="https://calendly.com/app/availability"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Set Availability in Calendly
+          </a>
+        </div>
+      )}
 
       <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-gray-900">{isPastoralAccount ? "My Calendly Meetings" : "My Scheduled Meetings"}</h2>
@@ -269,6 +287,9 @@ export default function Meetings() {
             {calendlyMeetings.map((meeting) => {
               const memberUpdateUrl = meeting.memberRescheduleUrl || meeting.rescheduleUrl || "";
               const memberDeleteUrl = meeting.memberCancelUrl || meeting.cancelUrl || "";
+              const pastorDeclineUrl = meeting.cancelUrl || CALENDLY_SCHEDULED_EVENTS_URL;
+              const pastorCancelUrl = meeting.cancelUrl || CALENDLY_SCHEDULED_EVENTS_URL;
+              const isLocallyApproved = !!approvedByUri[meeting.uri];
 
               return (
                 <article key={meeting.uri || `${meeting.startTime}-${meeting.name}`} className="rounded-xl border border-gray-200 p-4">
@@ -278,6 +299,39 @@ export default function Meetings() {
                     {isPastoralAccount ? "Scheduled by" : "Meeting with"}: {getCalendlyMeetingCounterparty(meeting)}
                   </p>
                   {meeting.status && <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Status: {meeting.status}</p>}
+                  {isPastoralAccount && !isLocallyApproved && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleLocalApprove(meeting.uri)}
+                        className="rounded-md border border-emerald-300 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-50"
+                      >
+                        Approve
+                      </button>
+                      <a
+                        href={pastorDeclineUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md border border-amber-300 px-3 py-1 text-sm text-amber-700 hover:bg-amber-50"
+                      >
+                        Decline
+                      </a>
+                    </div>
+                  )}
+
+                  {isPastoralAccount && isLocallyApproved && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={pastorCancelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
+                      >
+                        Cancel Meeting
+                      </a>
+                    </div>
+                  )}
+
                   {isMemberAccount && (memberUpdateUrl || memberDeleteUrl) && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {memberUpdateUrl && (

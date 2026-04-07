@@ -37,7 +37,7 @@ export default function Home() {
       }}>
         <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
           <div className="text-center text-white">
-            <h1 className="text-5xl font-bold mb-4">Glory Harbor Works</h1>
+            <h1 className="text-5xl font-bold mb-4">Glory Harbor</h1>
             <p className="text-xl">A Harbor of Hope and Spiritual Growth</p>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold mb-6 text-blue-900">Our Mission</h2>
           <p className="text-lg text-gray-700 mb-4">
-            Glory Harbor Works is committed to spreading the Gospel, building a loving community, 
+            Glory Harbor is committed to spreading the Gospel, building a loving community, 
             and helping individuals discover their purpose in Christ. We welcome all seekers of faith 
             and provide a welcoming space for spiritual growth.
           </p>
@@ -119,14 +119,14 @@ export default function Home() {
       {/* Church Info Cards - G3: View Church Info */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">About Glory Harbor Works</h2>
+          <h2 className="text-4xl font-bold mb-12 text-center">About Glory Harbor</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* History */}
             <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
               <h3 className="text-2xl font-bold mb-3">Our History</h3>
               <p className="text-gray-700">
-                Founded in 2015, Glory Harbor Works has grown from a small fellowship 
+                Founded in 2015, Glory Harbor has grown from a small fellowship 
                 to a thriving church community dedicated to spreading Christ's love.
               </p>
             </div>
@@ -195,7 +195,7 @@ export default function Home() {
       <section className="bg-gray-100 py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-2xl font-bold mb-6">Follow Us On Social Media</h2>
-          <p className="text-gray-600 mb-8">Stay connected with Glory Harbor Works for daily inspiration and updates</p>
+          <p className="text-gray-600 mb-8">Stay connected with Glory Harbor for daily inspiration and updates</p>
           <div className="flex justify-center gap-8">
             <a href="https://facebook.com/GloryHarborWorks" target="_blank" rel="noreferrer" 
                className="text-3xl text-blue-600 hover:text-blue-800 transition">

@@ -282,7 +282,9 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
             <div className="bg-gradient-to-br from-[#15436b] to-[#15436b]/80 p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center">
               <div className="bg-white/95 p-4 rounded-lg w-full text-center">
                 <h3 className="text-lg font-semibold mb-2 text-[#15436b]">Email</h3>
-                <p className="text-gray-700">stgciglory@gmail.com</p>
+                <a href="mailto:stgciglory@gmail.com" className="text-gray-700 hover:text-[#15436b] underline underline-offset-2">
+                  stgciglory@gmail.com
+                </a>
               </div>
             </div>
 
@@ -290,8 +292,16 @@ We are sent to take the gospel of Jesus Christ throughout the whole world with s
             <div className="bg-gradient-to-br from-[#15436b] to-[#15436b]/80 p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center">
               <div className="bg-white/95 p-4 rounded-lg w-full text-center">
                 <h3 className="text-lg font-semibold mb-2 text-[#15436b]">Visit</h3>
-                <p className="text-gray-700">9004 Harford Road</p>
-                <p className="text-gray-700">Parkville, MD 21234</p>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=Glory+Harbor+9004+Harford+Rd%2C+Parkville%2C+MD+21234"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block text-gray-700 hover:text-[#15436b] underline underline-offset-2"
+                >
+                  9004 Harford Road
+                  <br />
+                  Parkville, MD 21234
+                </a>
                 <p className="text-sm mt-3 text-gray-600">Sundays at 10:00 AM</p>
               </div>
             </div>

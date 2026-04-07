@@ -7,7 +7,10 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const normalizedRole = String(user?.role || "").trim().toLowerCase();
+  const normalizedRole = String(user?.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
 
   const handleLogout = () => {
     logout();
@@ -16,6 +19,9 @@ const Navbar = () => {
   };
 
   const canOpenAdminDash = normalizedRole === "admin" || normalizedRole === "leader";
+  const canOpenTeacherDash =
+    normalizedRole === "teacher" ||
+    normalizedRole === "leader";
 
   return (
     <nav className="sticky top-0 z-50 bg-[#15436b] text-[#f7fff5] shadow-md">
@@ -67,6 +73,11 @@ const Navbar = () => {
               {normalizedRole === "pastor" && (
                 <li>
                   <Link className="hover:text-[#E7A027]" to="/pastor-dashboard">Pastor Dashboard</Link>
+                </li>
+              )}
+              {canOpenTeacherDash && (
+                <li>
+                  <Link className="hover:text-[#E7A027]" to="/teacher-dashboard">Teacher Dashboard</Link>
                 </li>
               )}
               <li className="flex items-center gap-2">
@@ -147,6 +158,11 @@ const Navbar = () => {
                 {normalizedRole === "pastor" && (
                   <li>
                     <Link to="/pastor-dashboard" onClick={() => setOpen(false)}>Pastor Dashboard</Link>
+                  </li>
+                )}
+                {canOpenTeacherDash && (
+                  <li>
+                    <Link to="/teacher-dashboard" onClick={() => setOpen(false)}>Teacher Dashboard</Link>
                   </li>
                 )}
                 {canOpenAdminDash && (

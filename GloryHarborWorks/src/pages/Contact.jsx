@@ -42,7 +42,7 @@ export default function Contact() {
       <section className="bg-blue-600 text-white py-12 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
-          <p className="text-lg">We'd love to hear from you. Get in touch with Glory Harbor Works today.</p>
+          <p className="text-lg">We'd love to hear from you. Get in touch with Glory Harbor today.</p>
         </div>
       </section>
 
@@ -206,7 +206,7 @@ export default function Contact() {
             <div>
               <h3 className="text-xl font-semibold mb-3 text-blue-600">Visit Us</h3>
               <p className="text-gray-700">
-                Want to visit Glory Harbor Works in person? We'd love to welcome you to our community 
+                Want to visit Glory Harbor in person? We'd love to welcome you to our community 
                 on Sunday mornings!
               </p>
             </div>

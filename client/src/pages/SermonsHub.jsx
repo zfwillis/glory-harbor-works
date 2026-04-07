@@ -137,7 +137,7 @@ const SermonsHub = () => {
   const [filters, setFilters] = useState({
     speaker: "",
     topic: "",
-    series: "",
+    title: "",
     mediaType: "all",
   });
   const canUploadSermons = user?.role === "leader" || user?.role === "pastor";
@@ -170,8 +170,8 @@ const SermonsHub = () => {
       if (activeFilters.topic.trim()) {
         params.set("topic", activeFilters.topic.trim());
       }
-      if (activeFilters.series.trim()) {
-        params.set("series", activeFilters.series.trim());
+      if (activeFilters.title.trim()) {
+        params.set("q", activeFilters.title.trim());
       }
       if (activeFilters.mediaType && activeFilters.mediaType !== "all") {
         params.set("type", activeFilters.mediaType);
@@ -200,7 +200,7 @@ const SermonsHub = () => {
     loadSermons({
       speaker: "",
       topic: "",
-      series: "",
+      title: "",
       mediaType: "all",
     });
   }, []);
@@ -234,7 +234,7 @@ const SermonsHub = () => {
   };
 
   const clearFilters = async () => {
-    const cleared = { speaker: "", topic: "", series: "", mediaType: "all" };
+    const cleared = { speaker: "", topic: "", title: "", mediaType: "all" };
     setFilters(cleared);
     await loadSermons(cleared);
   };
@@ -651,7 +651,7 @@ const SermonsHub = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7fff5] px-4 py-10">
+    <div className="min-h-screen bg-white px-4 py-10">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-[#15436b]">Sermons Hub</h1>
@@ -835,10 +835,10 @@ const SermonsHub = () => {
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
             />
             <input
-              name="series"
-              value={filters.series}
+              name="title"
+              value={filters.title}
               onChange={handleFilterChange}
-              placeholder="Search by series"
+              placeholder="Search by title"
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#15436b]"
             />
             <select
@@ -875,7 +875,7 @@ const SermonsHub = () => {
         )}
         {!loading && !error && streamItems.length === 0 && (
           <div className="bg-white border border-[#d9e6df] rounded-xl p-4 text-gray-600">
-            No sermons matched your search. Try another speaker, topic, or series.
+            No sermons matched your search. Try another speaker, topic, or title.
           </div>
         )}
 

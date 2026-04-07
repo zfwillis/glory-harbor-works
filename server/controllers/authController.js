@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import { verifyRegistrationCode } from "../config/registrationCodes.js";
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -11,12 +12,27 @@ const generateToken = (userId) => {
 // Register User
 export const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, role, registrationCode } = req.body;
+    const normalizedRole = String(role || "member").trim().toLowerCase();
+    const requestedRole = normalizedRole || "member";
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
+    }
+
+    const isElevatedRole = requestedRole !== "member";
+
+    if (isElevatedRole && !registrationCode) {
+      return res.status(400).json({ message: "Registration code required for this role" });
+    }
+
+    if (isElevatedRole) {
+      const isValidCode = await verifyRegistrationCode(requestedRole, registrationCode);
+      if (!isValidCode) {
+        return res.status(403).json({ message: "Invalid registration code" });
+      }
     }
 
     // Create new user
@@ -25,7 +41,7 @@ export const register = async (req, res) => {
       password,
       firstName,
       lastName,
-      role: "member",
+      role: requestedRole,
     });
 
     // Generate token

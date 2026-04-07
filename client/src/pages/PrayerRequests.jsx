@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import PrayerTeamDash from "./PrayerTeamDash";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function PrayerRequests() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const [prayerTeamView, setPrayerTeamView] = useState("submit");
   const [text, setText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -16,6 +18,12 @@ export default function PrayerRequests() {
   const [deletingRequestId, setDeletingRequestId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const normalizedRole = String(user?.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const isPrayerTeamMember = normalizedRole === "prayer_team";
 
   const loadPrayerRequests = async () => {
     if (!token) {
@@ -185,12 +193,53 @@ export default function PrayerRequests() {
   };
 
   return (
-    <section className="mx-auto max-w-3xl px-4 py-12">
+    <section
+      className={`mx-auto px-4 py-12 ${
+        isPrayerTeamMember && prayerTeamView === "monitor" ? "max-w-6xl" : "max-w-3xl"
+      }`}
+    >
       <h1 className="text-3xl font-bold text-[#15436b]">Prayer Requests</h1>
       <p className="mt-3 text-gray-700">
-        Share your prayer need and our team will stand with you in prayer.
+        {isPrayerTeamMember && prayerTeamView === "monitor"
+          ? "Welcome, Prayer Team. Track and support prayer requests."
+          : "Share your prayer need and our team will stand with you in prayer."}
       </p>
 
+      {isPrayerTeamMember && (
+        <div className="mt-6 inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          <button
+            type="button"
+            onClick={() => setPrayerTeamView("submit")}
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+              prayerTeamView === "submit"
+                ? "bg-[#15436b] text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Submitting
+          </button>
+          <button
+            type="button"
+            onClick={() => setPrayerTeamView("monitor")}
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+              prayerTeamView === "monitor"
+                ? "bg-[#15436b] text-white"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Monitoring
+          </button>
+        </div>
+      )}
+
+      {isPrayerTeamMember && prayerTeamView === "monitor" && (
+        <div className="mt-8 lg:mt-10">
+          <PrayerTeamDash embedded hideHeader />
+        </div>
+      )}
+
+      {(!isPrayerTeamMember || prayerTeamView === "submit") && (
+        <>
       <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-gray-900">Submit Prayer Request</h2>
 
@@ -319,6 +368,8 @@ export default function PrayerRequests() {
           </div>
         )}
       </div>
+        </>
+      )}
     </section>
   );
 }

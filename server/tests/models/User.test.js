@@ -95,7 +95,7 @@ describe("User Model", () => {
         password: "password123",
         firstName: "John",
         lastName: "Doe",
-        role: "admin",
+        role: "superadmin",
       });
 
       const error = user.validateSync();

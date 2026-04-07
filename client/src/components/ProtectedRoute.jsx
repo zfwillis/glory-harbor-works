@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext'
 
 export default function ProtectedRoute({ children, roles }) {
   const { isAuthenticated, loading, user } = useAuth()
-  const normalizedUserRole = String(user?.role || "").trim().toLowerCase()
+  const normalizeRole = (role) => String(role || "").trim().toLowerCase().replace(/[\s-]+/g, "_")
+  const normalizedUserRole = normalizeRole(user?.role)
 
   if (loading) return null
 
@@ -12,7 +13,7 @@ export default function ProtectedRoute({ children, roles }) {
   }
 
   const normalizedAllowedRoles = Array.isArray(roles)
-    ? roles.map((role) => String(role || "").trim().toLowerCase())
+    ? roles.map((role) => normalizeRole(role))
     : []
 
   if (normalizedAllowedRoles.length > 0 && !normalizedAllowedRoles.includes(normalizedUserRole)) {

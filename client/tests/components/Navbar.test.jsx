@@ -33,7 +33,7 @@ describe('Navbar Component', () => {
 
   it('should render navbar with logo', () => {
     renderNavbar();
-    expect(screen.getByText(/Glory Harbor/i)).toBeInTheDocument();
+    expect(screen.getByAltText(/glory harbor/i)).toBeInTheDocument();
   });
 
   it('should show login and register buttons when not authenticated', () => {

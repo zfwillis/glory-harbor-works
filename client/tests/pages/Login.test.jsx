@@ -106,6 +106,9 @@ describe('Login Component', () => {
 
     renderLogin();
 
+    fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'password123' } });
+
     const submitButton = screen.getByRole('button', { name: /Login/i });
     
     fireEvent.click(submitButton);

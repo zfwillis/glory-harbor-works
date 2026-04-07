@@ -4,6 +4,10 @@ import { useLocation } from "react-router-dom";
 export default function Info() {
   const location = useLocation();
 
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   useEffect(() => {
     if (!location.hash) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -102,6 +106,15 @@ export default function Info() {
           </ul>
         </section>
       </div>
+
+      <button
+        type="button"
+        onClick={handleBackToTop}
+        className="fixed bottom-6 right-6 z-40 rounded-full bg-[#15436b] px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-[#0f2f4d]"
+        aria-label="Back to top"
+      >
+        Top of Page
+      </button>
     </div>
   );
 }

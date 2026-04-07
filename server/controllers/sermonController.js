@@ -63,6 +63,13 @@ const removeUploadedFiles = (files = []) => {
   });
 };
 
+const escapeRegex = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const toCaseInsensitiveContainsRegex = (value = "") => ({
+  $regex: escapeRegex(value.trim()),
+  $options: "i",
+});
+
 const fallbackSermons = [
   {
     title: "Benefits of Praying In Tongues (Part 2)",
@@ -121,14 +128,19 @@ export const getSermons = async (req, res) => {
 
     const query = {};
     const andConditions = [];
-    if (speaker) {
-      query.speaker = { $regex: speaker, $options: "i" };
+    const normalizedSpeaker = String(speaker || "").trim();
+    const normalizedTopic = String(topic || "").trim();
+    const normalizedSeries = String(series || "").trim();
+    const normalizedQuery = String(q || "").trim();
+
+    if (normalizedSpeaker) {
+      query.speaker = toCaseInsensitiveContainsRegex(normalizedSpeaker);
     }
-    if (topic) {
-      query.topic = { $regex: topic, $options: "i" };
+    if (normalizedTopic) {
+      query.topic = toCaseInsensitiveContainsRegex(normalizedTopic);
     }
-    if (series) {
-      query.series = { $regex: series, $options: "i" };
+    if (normalizedSeries) {
+      query.series = toCaseInsensitiveContainsRegex(normalizedSeries);
     }
 
     if (type === "video") {
@@ -142,13 +154,13 @@ export const getSermons = async (req, res) => {
       });
     }
 
-    if (q) {
+    if (normalizedQuery) {
       andConditions.push({
         $or: [
-        { title: { $regex: q, $options: "i" } },
-        { speaker: { $regex: q, $options: "i" } },
-        { topic: { $regex: q, $options: "i" } },
-        { series: { $regex: q, $options: "i" } },
+        { title: toCaseInsensitiveContainsRegex(normalizedQuery) },
+        { speaker: toCaseInsensitiveContainsRegex(normalizedQuery) },
+        { topic: toCaseInsensitiveContainsRegex(normalizedQuery) },
+        { series: toCaseInsensitiveContainsRegex(normalizedQuery) },
         ],
       });
     }

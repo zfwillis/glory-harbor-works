@@ -52,7 +52,7 @@ function App() {
               <Route
                 path="/admin"
                 element={
-                  <ProtectedRoute roles={["admin", "pastor", "leader"]}>
+                  <ProtectedRoute roles={["admin", "leader"]}>
                     <AdminDash />
                   </ProtectedRoute>
                 }
@@ -76,7 +76,7 @@ function App() {
               <Route
                 path="/pastor-dashboard"
                 element={
-                  <ProtectedRoute roles={["pastor", "admin", "leader"]}>
+                  <ProtectedRoute roles={["pastor", "leader"]}>
                     <PastorDash />
                   </ProtectedRoute>
                 }

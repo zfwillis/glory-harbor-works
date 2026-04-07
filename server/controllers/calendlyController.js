@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import CalendlyMeetingAction from "../models/CalendlyMeetingAction.js";
 
 const CALENDLY_BASE_URL = "https://api.calendly.com";
 const CALENDLY_VERSION = "2020-08-01";
@@ -32,9 +33,44 @@ const mapEventType = (eventType = {}) => ({
 
 const toLower = (value = "") => String(value).trim().toLowerCase();
 
+const sanitizeUri = (value = "") => String(value || "").trim();
+
+const safeReadJson = async (response) => {
+  try {
+    const raw = await response.text();
+    if (!raw) {
+      return {};
+    }
+
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+};
+
+const getFirstConfiguredEnv = (...keys) => {
+  for (const key of keys) {
+    const value = sanitizeUri(process.env[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+};
+
 const getEventUuid = (uri = "") => {
   const parts = String(uri).split("/").filter(Boolean);
   return parts[parts.length - 1] || "";
+};
+
+const isUpcomingMeeting = (startTime) => {
+  const startDate = new Date(startTime || "");
+  if (Number.isNaN(startDate.getTime())) {
+    return false;
+  }
+
+  return startDate.getTime() >= Date.now();
 };
 
 const mapHosts = (memberships = []) =>
@@ -112,18 +148,81 @@ const getScheduledEventInvitees = async (eventUri, headers) => {
 };
 
 const getUserUri = async (headers) => {
-  if (process.env.CALENDLY_USER_URI) {
-    return process.env.CALENDLY_USER_URI;
+  const configuredUserUri = getFirstConfiguredEnv(
+    "CALENDLY_USER_URI",
+    "CALENDLY_USER",
+    "CALENDLY_OWNER_URI"
+  );
+  if (configuredUserUri) {
+    return configuredUserUri;
   }
 
-  const response = await fetch(`${CALENDLY_BASE_URL}/users/me`, { headers });
-  const data = await response.json();
+  try {
+    const response = await fetch(`${CALENDLY_BASE_URL}/users/me`, { headers });
+    const data = await safeReadJson(response);
 
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to load Calendly user");
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to load Calendly user");
+    }
+
+    return sanitizeUri(data.resource?.uri || "");
+  } catch (error) {
+    // Do not block requests when /users/me fails; callers can fall back to organization-based queries.
+    console.warn("Calendly users/me lookup failed, falling back to configured organization URI.", error.message);
+    return "";
+  }
+};
+
+const getOrganizationUri = async (headers, ownerUserUri = "") => {
+  const configuredOrgUri = getFirstConfiguredEnv(
+    "CALENDLY_ORGANIZATION_URI",
+    "CALENDLY_ORGANIZATION",
+    "CALENDLY_ORG_URI",
+    "CALENDLY_ORG"
+  );
+  if (configuredOrgUri) {
+    return configuredOrgUri;
   }
 
-  return data.resource?.uri || "";
+  // Some Calendly accounts expose current organization directly on /users/me.
+  try {
+    const response = await fetch(`${CALENDLY_BASE_URL}/users/me`, { headers });
+    const data = await safeReadJson(response);
+
+    if (response.ok) {
+      const fromUserProfile = sanitizeUri(data.resource?.current_organization || data.resource?.organization || "");
+      if (fromUserProfile) {
+        return fromUserProfile;
+      }
+    }
+  } catch {
+    // Ignore and continue to membership lookup.
+  }
+
+  try {
+    const membershipsUrl = new URL(`${CALENDLY_BASE_URL}/organization_memberships`);
+    membershipsUrl.searchParams.set("count", "100");
+
+    if (ownerUserUri) {
+      membershipsUrl.searchParams.set("user", ownerUserUri);
+    }
+
+    const response = await fetch(membershipsUrl, { headers });
+    const data = await safeReadJson(response);
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to load Calendly organization memberships");
+    }
+
+    const firstMembership = Array.isArray(data.collection) ? data.collection[0] : null;
+    return sanitizeUri(firstMembership?.organization || "");
+  } catch (error) {
+    console.warn(
+      "Calendly organization membership lookup failed.",
+      error.message
+    );
+    return "";
+  }
 };
 
 export const getCalendlyEventTypes = async (req, res) => {
@@ -136,8 +235,17 @@ export const getCalendlyEventTypes = async (req, res) => {
   }
 
   try {
-    const configuredOrgUri = process.env.CALENDLY_ORGANIZATION_URI;
     const ownerUserUri = await getUserUri(headers);
+    const organizationUri = await getOrganizationUri(headers, ownerUserUri);
+
+    if (!ownerUserUri && !organizationUri) {
+      return res.status(200).json({
+        count: 0,
+        eventTypes: [],
+        warning:
+          "Calendly could not resolve a user or organization with the current API token. Set CALENDLY_USER_URI or CALENDLY_ORGANIZATION_URI in server/.env.",
+      });
+    }
 
     const eventTypeUrl = new URL(`${CALENDLY_BASE_URL}/event_types`);
     eventTypeUrl.searchParams.set("active", "true");
@@ -146,12 +254,12 @@ export const getCalendlyEventTypes = async (req, res) => {
 
     if (ownerUserUri) {
       eventTypeUrl.searchParams.set("user", ownerUserUri);
-    } else if (configuredOrgUri) {
-      eventTypeUrl.searchParams.set("organization", configuredOrgUri);
+    } else if (organizationUri) {
+      eventTypeUrl.searchParams.set("organization", organizationUri);
     }
 
     const response = await fetch(eventTypeUrl, { headers });
-    const data = await response.json();
+    const data = await safeReadJson(response);
 
     if (!response.ok) {
       throw new Error(data.message || "Failed to load Calendly event types");
@@ -188,30 +296,30 @@ export const getCalendlyScheduledMeetings = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const configuredOrgUri = process.env.CALENDLY_ORGANIZATION_URI;
     const ownerUserUri = await getUserUri(headers);
-    const normalizedRole = toLower(appUser.role);
-    const isPastoralAccount = normalizedRole === "pastor";
-    const userEmail = toLower(appUser.email);
+    const organizationUri = await getOrganizationUri(headers, ownerUserUri);
 
+    if (!ownerUserUri && !organizationUri) {
+      return res.status(200).json({
+        count: 0,
+        meetings: [],
+        warning:
+          "Calendly could not resolve a user or organization with the current API token. Set CALENDLY_USER_URI or CALENDLY_ORGANIZATION_URI in server/.env.",
+      });
+    }
     const scheduledEventsUrl = new URL(`${CALENDLY_BASE_URL}/scheduled_events`);
-    scheduledEventsUrl.searchParams.set("count", "25");
+    scheduledEventsUrl.searchParams.set("count", "100");
     scheduledEventsUrl.searchParams.set("sort", "start_time:desc");
     scheduledEventsUrl.searchParams.set("status", "active");
 
     if (ownerUserUri) {
       scheduledEventsUrl.searchParams.set("user", ownerUserUri);
-    } else if (configuredOrgUri) {
-      scheduledEventsUrl.searchParams.set("organization", configuredOrgUri);
-    }
-
-    // For members, ask Calendly to pre-filter by invitee email.
-    if (!isPastoralAccount && userEmail) {
-      scheduledEventsUrl.searchParams.set("invitee_email", userEmail);
+    } else if (organizationUri) {
+      scheduledEventsUrl.searchParams.set("organization", organizationUri);
     }
 
     const response = await fetch(scheduledEventsUrl, { headers });
-    const data = await response.json();
+    const data = await safeReadJson(response);
 
     if (!response.ok) {
       throw new Error(data.message || "Failed to load scheduled events");
@@ -244,19 +352,26 @@ export const getCalendlyScheduledMeetings = async (req, res) => {
       })
     );
 
-    const queriedByInviteeEmail = !isPastoralAccount && !!scheduledEventsUrl.searchParams.get("invitee_email");
+    const upcomingMeetings = hydratedEvents.filter((meeting) => isUpcomingMeeting(meeting.startTime));
+    const eventUuids = upcomingMeetings.map((meeting) => getEventUuid(meeting.uri)).filter(Boolean);
+    const decisions = eventUuids.length
+      ? await CalendlyMeetingAction.find({ eventUuid: { $in: eventUuids } })
+          .select("eventUuid action updatedAt")
+          .lean()
+      : [];
 
-    const meetings =
-      isPastoralAccount
-        ? hydratedEvents.filter((event) => isHostedByUser(event, appUser))
-        : hydratedEvents.filter((event) => {
-            if (isBookedByUser(event, appUser)) {
-              return true;
-            }
+    const decisionByEventUuid = new Map(decisions.map((decision) => [decision.eventUuid, decision]));
 
-            // If Calendly already filtered by invitee_email, keep the event even if invitee expansion was unavailable.
-            return queriedByInviteeEmail;
-          });
+    const meetings = upcomingMeetings.map((meeting) => {
+      const eventUuid = getEventUuid(meeting.uri);
+      const decision = eventUuid ? decisionByEventUuid.get(eventUuid) : null;
+
+      return {
+        ...meeting,
+        pastorDecision: decision?.action || "",
+        pastorDecisionUpdatedAt: decision?.updatedAt || "",
+      };
+    });
 
     return res.status(200).json({
       count: meetings.length,
@@ -266,6 +381,126 @@ export const getCalendlyScheduledMeetings = async (req, res) => {
     console.error("Calendly meetings fetch error:", error);
     return res.status(500).json({
       message: "Unable to load meetings right now.",
+      error: error.message,
+    });
+  }
+};
+
+const cancelCalendlyScheduledEvent = async ({ eventUuid, headers }) => {
+  const cancellationUrl = `${CALENDLY_BASE_URL}/scheduled_events/${eventUuid}/cancellation`;
+  const response = await fetch(cancellationUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ reason: "Updated by pastoral staff" }),
+  });
+
+  const data = await safeReadJson(response);
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to cancel Calendly meeting");
+  }
+};
+
+export const updateCalendlyMeetingAction = async (req, res) => {
+  const headers = buildCalendlyHeaders();
+
+  if (!headers) {
+    return res.status(500).json({
+      message: "Calendly is not configured on the server.",
+    });
+  }
+
+  try {
+    const requester = await User.findById(req.userId).select("role").lean();
+    if (!requester || toLower(requester.role) !== "pastor") {
+      return res.status(403).json({ message: "Pastor access required" });
+    }
+
+    const eventUuid = sanitizeUri(req.params.eventUuid || "");
+    const actionInput = toLower(req.body?.action || "");
+    const meetingUri = sanitizeUri(req.body?.meetingUri || "");
+
+    if (!eventUuid) {
+      return res.status(400).json({ message: "Meeting event id is required" });
+    }
+
+    const actionMap = {
+      approve: "approved",
+      approved: "approved",
+      decline: "declined",
+      declined: "declined",
+      cancel: "cancelled",
+      cancelled: "cancelled",
+      canceled: "cancelled",
+    };
+
+    const normalizedAction = actionMap[actionInput];
+    if (!normalizedAction) {
+      return res.status(400).json({ message: "Invalid meeting action" });
+    }
+
+    const existingDecision = await CalendlyMeetingAction.findOne({ eventUuid })
+      .select("action")
+      .lean();
+    const currentAction = existingDecision?.action || "";
+
+    // Workflow: first action must be approve/decline. Cancel is only allowed after approval.
+    if (!currentAction) {
+      if (normalizedAction === "cancelled") {
+        return res.status(400).json({
+          message: "Cancel is only allowed after a meeting has been approved.",
+        });
+      }
+    } else if (currentAction === "approved") {
+      if (normalizedAction !== "cancelled" && normalizedAction !== "approved") {
+        return res.status(400).json({
+          message: "Approved meetings can only be cancelled.",
+        });
+      }
+    } else {
+      return res.status(400).json({
+        message: `This meeting is already ${currentAction} and can no longer be updated.`,
+      });
+    }
+
+    if (currentAction && currentAction === normalizedAction) {
+      return res.status(200).json({
+        message: "Meeting action already set.",
+        action: currentAction,
+        eventUuid,
+        updatedAt: new Date().toISOString(),
+        meetingStatus: currentAction === "approved" ? "active" : "cancelled",
+      });
+    }
+
+    if (normalizedAction === "declined" || normalizedAction === "cancelled") {
+      await cancelCalendlyScheduledEvent({ eventUuid, headers });
+    }
+
+    const saved = await CalendlyMeetingAction.findOneAndUpdate(
+      { eventUuid },
+      {
+        eventUuid,
+        meetingUri,
+        action: normalizedAction,
+        updatedBy: req.userId,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+      .select("eventUuid action updatedAt")
+      .lean();
+
+    return res.status(200).json({
+      message: "Meeting action updated successfully",
+      action: saved.action,
+      eventUuid: saved.eventUuid,
+      updatedAt: saved.updatedAt,
+      meetingStatus: normalizedAction === "approved" ? "active" : "cancelled",
+    });
+  } catch (error) {
+    console.error("Calendly meeting action update error:", error);
+    return res.status(500).json({
+      message: "Unable to update meeting action right now.",
       error: error.message,
     });
   }
