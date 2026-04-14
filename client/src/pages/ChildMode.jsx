@@ -30,6 +30,9 @@ export default function ChildMode() {
   const [lessons, setLessons] = useState([]);
   const [summary, setSummary] = useState({ lessonCount: 0, completedCount: 0, totalScore: 0, totalQuestions: 0 });
   const [selectedLessonId, setSelectedLessonId] = useState("");
+  const [activeView, setActiveView] = useState("lesson");
+  const [activeQuizLessonId, setActiveQuizLessonId] = useState("");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -44,9 +47,16 @@ export default function ChildMode() {
     () => lessons.find((lesson) => String(lesson._id) === String(selectedLessonId)) || lessons[0] || null,
     [lessons, selectedLessonId]
   );
-  const selectedProgress = selectedLesson?.progress || null;
-  const selectedReview = selectedProgress?.review || [];
-  const selectedLessonCompleted = !!selectedProgress?.completed;
+  const activeQuizLesson = useMemo(
+    () => lessons.find((lesson) => String(lesson._id) === String(activeQuizLessonId)) || null,
+    [lessons, activeQuizLessonId]
+  );
+  const activeQuizProgress = activeQuizLesson?.progress || null;
+  const activeQuizReview = activeQuizProgress?.review || [];
+  const activeQuizCompleted = !!activeQuizProgress?.completed;
+  const activeQuizQuestions = activeQuizLesson?.quizQuestions || [];
+  const isQuizReviewPage = activeView === "quiz" && currentQuestionIndex >= activeQuizQuestions.length;
+  const currentQuestion = activeQuizQuestions[currentQuestionIndex] || null;
 
   const progressPercent = summary.lessonCount
     ? Math.round((summary.completedCount / summary.lessonCount) * 100)
@@ -106,9 +116,33 @@ export default function ChildMode() {
   }, [token, childId]);
 
   useEffect(() => {
-    setAnswers({});
     setMessage("");
   }, [selectedLessonId]);
+
+  const openLesson = (lessonId) => {
+    setSelectedLessonId(lessonId);
+    setActiveView("lesson");
+    setMessage("");
+    setError("");
+  };
+
+  const startQuiz = (lesson) => {
+    setActiveQuizLessonId(lesson._id);
+    setActiveView("quiz");
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setMessage("");
+    setError("");
+  };
+
+  const viewQuizResults = (lesson) => {
+    setActiveQuizLessonId(lesson._id);
+    setActiveView("quiz");
+    setCurrentQuestionIndex(lesson.quizQuestions?.length || 0);
+    setAnswers({});
+    setMessage("");
+    setError("");
+  };
 
   const handleExitRequest = () => {
     setShowExitGate(true);
@@ -169,11 +203,11 @@ export default function ChildMode() {
   const handleSubmitQuiz = async (event) => {
     event.preventDefault();
 
-    if (!selectedLesson) {
+    if (!activeQuizLesson) {
       return;
     }
 
-    const quizQuestions = selectedLesson.quizQuestions || [];
+    const quizQuestions = activeQuizLesson.quizQuestions || [];
     const answerList = quizQuestions.map((question) => answers[question.index]);
 
     if (answerList.some((answer) => answer === undefined)) {
@@ -186,7 +220,7 @@ export default function ChildMode() {
     setMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/lessons/children/${childId}/${selectedLesson._id}/quiz`, {
+      const response = await fetch(`${API_URL}/lessons/children/${childId}/${activeQuizLesson._id}/quiz`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -202,6 +236,7 @@ export default function ChildMode() {
 
       setMessage(`Great work. You scored ${data.progress.quizScore} out of ${data.progress.totalQuestions}.`);
       await loadChildMode();
+      setCurrentQuestionIndex(quizQuestions.length);
     } catch (submitError) {
       setError(submitError.message || "Could not save quiz.");
     } finally {
@@ -229,8 +264,8 @@ export default function ChildMode() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[320px,1fr]">
-        <aside className="space-y-4">
+      <main className={`mx-auto max-w-6xl gap-6 px-4 py-8 ${activeView === "quiz" ? "grid lg:grid-cols-[320px,1fr]" : "space-y-6"}`}>
+        <aside className={activeView === "quiz" ? "space-y-4" : "space-y-6"}>
           <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">Progress</h2>
             <p className="mt-3 text-3xl font-bold text-[#15436b]">{progressPercent}%</p>
@@ -258,7 +293,7 @@ export default function ChildMode() {
                   <button
                     key={lesson._id}
                     type="button"
-                    onClick={() => setSelectedLessonId(lesson._id)}
+                    onClick={() => openLesson(lesson._id)}
                     className={`w-full rounded-md border px-3 py-3 text-left text-sm ${
                       isSelected
                         ? "border-[#15436b] bg-[#eaf3fb]"
@@ -267,43 +302,86 @@ export default function ChildMode() {
                   >
                     <span className="block font-semibold text-gray-900">{lesson.title}</span>
                     <span className="block text-xs text-gray-500">{formatWeek(lesson.weekOf)}</span>
-                    {isComplete && <span className="mt-1 block text-xs font-semibold text-green-700">Completed</span>}
+                    <span className="mt-2 block text-xs text-gray-700">Verse: {lesson.bibleVerse}</span>
+                    <span className="block text-xs text-gray-700">{lesson.memoryVerse}</span>
+                    {isComplete && <span className="mt-2 block text-xs font-semibold text-green-700">Quiz completed</span>}
+                    {isSelected && activeView === "lesson" && (
+                      <span className="mt-4 block rounded-md border border-[#E7A027]/40 bg-[#fff8ea] p-4 text-sm text-gray-800">
+                        <span className="block font-semibold text-gray-950">Memory Verse</span>
+                        <span className="mt-1 block text-base text-gray-950">{lesson.memoryVerse}</span>
+                        <span className="mt-1 block text-xs text-gray-600">{lesson.bibleVerse}</span>
+                        <span className="mt-4 block font-semibold text-gray-950">Lesson</span>
+                        <span className="mt-1 block leading-6">{lesson.content}</span>
+                      </span>
+                    )}
                   </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">Weekly Quizzes</h2>
+            {loading && <p className="mt-3 text-sm text-gray-600">Loading quizzes...</p>}
+            {!loading && lessons.length === 0 && (
+              <p className="mt-3 text-sm text-gray-600">No quizzes are available yet.</p>
+            )}
+            <div className="mt-4 space-y-2">
+              {lessons.map((lesson) => {
+                const isComplete = lesson.progress?.completed;
+                const isActiveQuiz = activeView === "quiz" && String(activeQuizLesson?._id) === String(lesson._id);
+
+                return (
+                  <div
+                    key={`${lesson._id}-quiz`}
+                    className={`rounded-md border px-3 py-3 text-sm ${
+                      isActiveQuiz ? "border-[#15436b] bg-[#eaf3fb]" : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-900">{lesson.title}</p>
+                    <p className="mt-1 text-xs text-gray-500">{lesson.quizQuestions?.length || 0} questions</p>
+                    {isComplete && (
+                      <p className="mt-1 text-xs font-semibold text-green-700">
+                        Score: {lesson.progress.quizScore} / {lesson.progress.totalQuestions}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => (isComplete ? viewQuizResults(lesson) : startQuiz(lesson))}
+                      className="mt-3 rounded-md bg-[#15436b] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b5385]"
+                    >
+                      {isComplete ? "View Results" : "Take Quiz"}
+                    </button>
+                  </div>
                 );
               })}
             </div>
           </section>
         </aside>
 
+        {activeView === "quiz" && (
         <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           {error && <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
           {message && <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-green-700">{message}</div>}
 
           {loading && <p className="text-gray-600">Loading child mode...</p>}
 
-          {!loading && selectedLesson && (
+          {!loading && activeView === "quiz" && activeQuizLesson && (
             <>
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#15436b]">{formatWeek(selectedLesson.weekOf)}</p>
-              <h2 className="mt-1 text-3xl font-bold text-gray-950">{selectedLesson.title}</h2>
-              <div className="mt-5 rounded-md border border-[#E7A027]/40 bg-[#fff8ea] p-4">
-                <p className="text-sm font-semibold text-gray-800">Memory Verse</p>
-                <p className="mt-1 text-lg text-gray-950">{selectedLesson.memoryVerse}</p>
-                <p className="mt-1 text-sm text-gray-600">{selectedLesson.bibleVerse}</p>
-              </div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#15436b]">Weekly Quiz</p>
+              <h2 className="mt-1 text-3xl font-bold text-gray-950">{activeQuizLesson.title}</h2>
 
-              <p className="mt-6 text-lg leading-8 text-gray-800">{selectedLesson.content}</p>
-
-              {selectedLessonCompleted ? (
-                <section className="mt-8">
+              {activeQuizCompleted ? (
+                <section className="mt-6">
                   <div className="rounded-md border border-green-200 bg-green-50 p-4">
                     <h3 className="text-xl font-semibold text-green-900">Quiz Results</h3>
                     <p className="mt-1 text-green-800">
-                      You scored {selectedProgress.quizScore} out of {selectedProgress.totalQuestions}.
+                      You scored {activeQuizProgress.quizScore} out of {activeQuizProgress.totalQuestions}.
                     </p>
                   </div>
 
                   <div className="mt-5 space-y-4">
-                    {selectedReview.map((question) => {
+                    {activeQuizReview.map((question) => {
                       const selectedAnswer = question.options[question.selectedAnswerIndex] || "No answer";
                       const correctAnswer = question.options[question.correctAnswerIndex] || "Answer unavailable";
 
@@ -314,7 +392,9 @@ export default function ChildMode() {
                             question.isCorrect ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
                           }`}
                         >
-                          <p className="font-semibold text-gray-950">{question.prompt}</p>
+                          <p className="font-semibold text-gray-950">
+                            Question {question.index + 1}: {question.prompt}
+                          </p>
                           <p className="mt-2 text-sm text-gray-800">
                             Your answer: <span className="font-semibold">{selectedAnswer}</span>
                           </p>
@@ -328,41 +408,103 @@ export default function ChildMode() {
                   </div>
                 </section>
               ) : (
-                <form onSubmit={handleSubmitQuiz} className="mt-8">
-                  <h3 className="text-xl font-semibold text-gray-950">Quiz Time</h3>
-                  <div className="mt-4 space-y-5">
-                    {(selectedLesson.quizQuestions || []).map((question) => (
-                      <fieldset key={question.index} className="rounded-md border border-gray-200 p-4">
-                        <legend className="px-1 font-semibold text-gray-900">{question.prompt}</legend>
-                        <div className="mt-3 space-y-2">
-                          {question.options.map((option, optionIndex) => (
-                            <label key={option} className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-gray-50">
-                              <input
-                                type="radio"
-                                name={`question-${question.index}`}
-                                checked={answers[question.index] === optionIndex}
-                                onChange={() => handleAnswerChange(question.index, optionIndex)}
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </fieldset>
-                    ))}
-                  </div>
+                <form onSubmit={handleSubmitQuiz} className="mt-6">
+                  {!isQuizReviewPage && currentQuestion && (
+                    <fieldset className="rounded-md border border-gray-200 p-5">
+                      <legend className="px-1 text-sm font-semibold text-[#15436b]">
+                        Question {currentQuestionIndex + 1} of {activeQuizQuestions.length}
+                      </legend>
+                      <p className="mt-3 text-xl font-semibold text-gray-950">{currentQuestion.prompt}</p>
+                      <div className="mt-5 space-y-3">
+                        {currentQuestion.options.map((option, optionIndex) => (
+                          <label
+                            key={option}
+                            className="flex cursor-pointer items-center gap-3 rounded-md border border-gray-200 px-3 py-3 hover:bg-gray-50"
+                          >
+                            <input
+                              type="radio"
+                              name={`question-${currentQuestion.index}`}
+                              checked={answers[currentQuestion.index] === optionIndex}
+                              onChange={() => handleAnswerChange(currentQuestion.index, optionIndex)}
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
 
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="mt-6 rounded-md bg-[#15436b] px-5 py-3 font-semibold text-white hover:bg-[#1b5385] disabled:opacity-60"
-                  >
-                    {submitting ? "Saving..." : "Finish Quiz"}
-                  </button>
+                  {isQuizReviewPage && (
+                    <section className="rounded-md border border-gray-200 p-5">
+                      <h3 className="text-xl font-semibold text-gray-950">Ready to Submit?</h3>
+                      <p className="mt-2 text-sm text-gray-700">
+                        Check that each question has an answer before submitting.
+                      </p>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {activeQuizQuestions.map((question) => {
+                          const isAnswered = answers[question.index] !== undefined;
+
+                          return (
+                            <button
+                              key={question.index}
+                              type="button"
+                              onClick={() => setCurrentQuestionIndex(question.index)}
+                              className={`rounded-md border px-3 py-3 text-left text-sm ${
+                                isAnswered ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+                              }`}
+                            >
+                              <span className="block font-semibold">Question {question.index + 1}</span>
+                              <span className={isAnswered ? "text-green-700" : "text-red-700"}>
+                                {isAnswered ? "Answered" : "Not answered"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveView("lesson")}
+                      className="rounded-md border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      Back to Lessons
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+                      disabled={currentQuestionIndex === 0}
+                      className="rounded-md border border-gray-300 px-4 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    {!isQuizReviewPage && (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentQuestionIndex((index) => Math.min(activeQuizQuestions.length, index + 1))}
+                        className="rounded-md bg-[#15436b] px-4 py-2 font-semibold text-white hover:bg-[#1b5385]"
+                      >
+                        {currentQuestionIndex === activeQuizQuestions.length - 1 ? "Review Answers" : "Next"}
+                      </button>
+                    )}
+                    {isQuizReviewPage && (
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="rounded-md bg-[#15436b] px-4 py-2 font-semibold text-white hover:bg-[#1b5385] disabled:opacity-60"
+                      >
+                        {submitting ? "Submitting..." : "Submit Answers"}
+                      </button>
+                    )}
+                  </div>
                 </form>
               )}
             </>
           )}
         </section>
+        )}
       </main>
 
       {showExitGate && (
