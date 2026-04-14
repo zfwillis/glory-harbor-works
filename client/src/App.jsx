@@ -18,6 +18,7 @@ import PrayerTeamDash from './pages/PrayerTeamDash'
 import PastorDash from './pages/PastorDash'
 import Meetings from './pages/Meetings'
 import ContactSubmissions from './pages/ContactSubmissions'
+import MyChildren from './pages/MyChildren'
 
 function App() {
   return (
@@ -94,6 +95,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Meetings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-children"
+                element={
+                  <ProtectedRoute>
+                    <MyChildren />
                   </ProtectedRoute>
                 }
               />
