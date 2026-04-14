@@ -1,11 +1,13 @@
 import Child from "../models/Child.js";
 import User from "../models/User.js";
 
+const getIdValue = (value) => value?._id || value;
+
 // Helper: check if the requesting user is either the primary or accepted second parent
 const isParent = (child, userId) =>
-  String(child.parent) === String(userId) ||
+  String(getIdValue(child.parent)) === String(userId) ||
   (child.secondParent &&
-    String(child.secondParent) === String(userId) &&
+    String(getIdValue(child.secondParent)) === String(userId) &&
     child.secondParentStatus === "accepted");
 
 // M5 - Create a child under the authenticated member

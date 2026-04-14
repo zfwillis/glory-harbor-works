@@ -124,6 +124,30 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
+export const verifyPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
+
+    return res.json({ message: "Password verified" });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // Logout (client-side handles token removal, but this endpoint can be used for logging)
 export const logout = async (req, res) => {
   res.json({ message: "Logout successful" });

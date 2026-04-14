@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const CALENDLY_SCHEDULED_EVENTS_URL = "https://calendly.com/app/scheduled_events";
+const CALENDLY_NOT_CONFIGURED_MESSAGE =
+  "Calendly is not configured for local development. Add CALENDLY_API_TOKEN to server/.env, then restart npm run dev.";
 
 const createEmbedUrl = (schedulingUrl = "") => {
   if (!schedulingUrl) {
@@ -17,6 +18,11 @@ const createEmbedUrl = (schedulingUrl = "") => {
   } catch {
     return schedulingUrl;
   }
+};
+
+const getEventUuid = (uri = "") => {
+  const parts = String(uri).split("/").filter(Boolean);
+  return parts[parts.length - 1] || "";
 };
 
 const formatDateTime = (value) => {
@@ -48,7 +54,7 @@ export default function Meetings() {
   const [error, setError] = useState("");
   const [meetingsError, setMeetingsError] = useState("");
   const [selectedEventUri, setSelectedEventUri] = useState("");
-  const [approvedByUri, setApprovedByUri] = useState({});
+  const [actionLoadingByUri, setActionLoadingByUri] = useState({});
 
   const selectedEventType = useMemo(
     () => eventTypes.find((eventType) => eventType.uri === selectedEventUri) || eventTypes[0] || null,
@@ -61,6 +67,8 @@ export default function Meetings() {
 
   useEffect(() => {
     if (!token) {
+      setLoading(false);
+      setMeetingsLoading(false);
       return;
     }
 
@@ -80,25 +88,30 @@ export default function Meetings() {
           }),
         ]);
 
-        if (eventTypesResult.status !== "fulfilled") {
-          throw new Error("Could not load Calendly event types.");
-        }
+        let availableEventTypes = [];
 
-        const eventTypeResponse = eventTypesResult.value;
-        const eventTypeData = await eventTypeResponse.json();
-        if (!eventTypeResponse.ok) {
-          throw new Error(eventTypeData.message || "Could not load Calendly events");
-        }
+        if (eventTypesResult.status === "fulfilled") {
+          const eventTypeResponse = eventTypesResult.value;
+          const eventTypeData = await eventTypeResponse.json();
 
-        const availableEventTypes = Array.isArray(eventTypeData.eventTypes) ? eventTypeData.eventTypes : [];
-        setEventTypes(availableEventTypes);
+          if (!eventTypeResponse.ok) {
+            const message = eventTypeData.message || "Could not load Calendly event types.";
+            setError(message.includes("not configured") ? CALENDLY_NOT_CONFIGURED_MESSAGE : message);
+          } else {
+            availableEventTypes = Array.isArray(eventTypeData.eventTypes) ? eventTypeData.eventTypes : [];
+            setEventTypes(availableEventTypes);
+          }
+        } else {
+          setError("Could not load Calendly event types.");
+        }
 
         if (meetingsResult.status === "fulfilled") {
           const meetingsResponse = meetingsResult.value;
           const meetingsData = await meetingsResponse.json();
 
           if (!meetingsResponse.ok) {
-            setMeetingsError(meetingsData.message || "Could not load meetings right now.");
+            const message = meetingsData.message || "Could not load meetings right now.";
+            setMeetingsError(message.includes("not configured") ? CALENDLY_NOT_CONFIGURED_MESSAGE : message);
             setCalendlyMeetings([]);
           } else {
             const availableMeetings = Array.isArray(meetingsData.meetings) ? meetingsData.meetings : [];
@@ -112,8 +125,8 @@ export default function Meetings() {
         if (availableEventTypes.length > 0) {
           setSelectedEventUri(availableEventTypes[0].uri || "");
         }
-      } catch (fetchError) {
-        setError(fetchError.message || "Failed to load Calendly data.");
+      } catch {
+        setError("Failed to load Calendly data.");
       } finally {
         setLoading(false);
         setMeetingsLoading(false);
@@ -126,6 +139,7 @@ export default function Meetings() {
   const selectedSchedulingUrl = selectedEventType?.schedulingUrl || "";
   const embedUrl = createEmbedUrl(selectedSchedulingUrl);
   const showPastorVictorCard = !isPastoralAccount;
+  const isCalendlySetupMissing = error === CALENDLY_NOT_CONFIGURED_MESSAGE || meetingsError === CALENDLY_NOT_CONFIGURED_MESSAGE;
 
   const getCalendlyMeetingCounterparty = (meeting) => {
     const hosts = Array.isArray(meeting.hosts) ? meeting.hosts : [];
@@ -138,12 +152,48 @@ export default function Meetings() {
     return hosts.map((host) => host.name || host.email).filter(Boolean).join(", ") || "Pastor";
   };
 
-  const handleLocalApprove = (meetingUri) => {
-    if (!meetingUri) {
+  const handlePastorAction = async (meeting, action) => {
+    const eventUuid = getEventUuid(meeting?.uri);
+    if (!eventUuid) {
+      setMeetingsError("Could not identify the Calendly meeting.");
       return;
     }
 
-    setApprovedByUri((prev) => ({ ...prev, [meetingUri]: true }));
+    setActionLoadingByUri((prev) => ({ ...prev, [meeting.uri]: true }));
+    setMeetingsError("");
+
+    try {
+      const response = await fetch(`${API_URL}/calendly/meetings/${eventUuid}/action`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, meetingUri: meeting.uri }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not update this meeting.");
+      }
+
+      setCalendlyMeetings((currentMeetings) =>
+        currentMeetings.map((currentMeeting) =>
+          currentMeeting.uri === meeting.uri
+            ? {
+                ...currentMeeting,
+                pastorDecision: data.action || action,
+                pastorDecisionUpdatedAt: data.updatedAt || new Date().toISOString(),
+                status: data.meetingStatus || currentMeeting.status,
+              }
+            : currentMeeting
+        )
+      );
+    } catch (actionError) {
+      setMeetingsError(actionError.message || "Could not update this meeting.");
+    } finally {
+      setActionLoadingByUri((prev) => ({ ...prev, [meeting.uri]: false }));
+    }
   };
 
   return (
@@ -175,7 +225,11 @@ export default function Meetings() {
         )}
       </div>
 
-      {error && <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
+      {(error || isCalendlySetupMissing) && (
+        <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          {isCalendlySetupMissing ? CALENDLY_NOT_CONFIGURED_MESSAGE : error}
+        </div>
+      )}
 
       {!isPastoralAccount && (
         <div className="mt-8 grid gap-8 lg:grid-cols-[360px,1fr]">
@@ -184,10 +238,14 @@ export default function Meetings() {
 
             {loading && <p className="mt-4 text-gray-600">Loading Calendly meeting types...</p>}
 
-            {!loading && eventTypes.length === 0 && (
+            {!loading && eventTypes.length === 0 && !isCalendlySetupMissing && (
               <p className="mt-4 text-sm text-gray-600">
                 No Calendly event types are available yet. Ask an admin to configure Calendly event types.
               </p>
+            )}
+
+            {!loading && eventTypes.length === 0 && isCalendlySetupMissing && (
+              <p className="mt-4 text-sm text-gray-600">Calendly booking options will load after the server token is added.</p>
             )}
 
             {!loading && eventTypes.length > 0 && (
@@ -270,7 +328,7 @@ export default function Meetings() {
       <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-gray-900">{isPastoralAccount ? "My Calendly Meetings" : "My Scheduled Meetings"}</h2>
 
-        {meetingsError && (
+        {meetingsError && !isCalendlySetupMissing && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">{meetingsError}</div>
         )}
 
@@ -287,9 +345,10 @@ export default function Meetings() {
             {calendlyMeetings.map((meeting) => {
               const memberUpdateUrl = meeting.memberRescheduleUrl || meeting.rescheduleUrl || "";
               const memberDeleteUrl = meeting.memberCancelUrl || meeting.cancelUrl || "";
-              const pastorDeclineUrl = meeting.cancelUrl || CALENDLY_SCHEDULED_EVENTS_URL;
-              const pastorCancelUrl = meeting.cancelUrl || CALENDLY_SCHEDULED_EVENTS_URL;
-              const isLocallyApproved = !!approvedByUri[meeting.uri];
+              const pastorDecision = meeting.pastorDecision || "";
+              const isActionLoading = !!actionLoadingByUri[meeting.uri];
+              const isApproved = pastorDecision === "approved";
+              const isClosed = pastorDecision === "declined" || pastorDecision === "cancelled";
 
               return (
                 <article key={meeting.uri || `${meeting.startTime}-${meeting.name}`} className="rounded-xl border border-gray-200 p-4">
@@ -299,36 +358,40 @@ export default function Meetings() {
                     {isPastoralAccount ? "Scheduled by" : "Meeting with"}: {getCalendlyMeetingCounterparty(meeting)}
                   </p>
                   {meeting.status && <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Status: {meeting.status}</p>}
-                  {isPastoralAccount && !isLocallyApproved && (
+                  {pastorDecision && (
+                    <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">Pastor decision: {pastorDecision}</p>
+                  )}
+                  {isPastoralAccount && !isApproved && !isClosed && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => handleLocalApprove(meeting.uri)}
+                        onClick={() => handlePastorAction(meeting, "approve")}
+                        disabled={isActionLoading}
                         className="rounded-md border border-emerald-300 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-50"
                       >
-                        Approve
+                        {isActionLoading ? "Updating..." : "Approve"}
                       </button>
-                      <a
-                        href={pastorDeclineUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handlePastorAction(meeting, "decline")}
+                        disabled={isActionLoading}
                         className="rounded-md border border-amber-300 px-3 py-1 text-sm text-amber-700 hover:bg-amber-50"
                       >
                         Decline
-                      </a>
+                      </button>
                     </div>
                   )}
 
-                  {isPastoralAccount && isLocallyApproved && (
+                  {isPastoralAccount && isApproved && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <a
-                        href={pastorCancelUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handlePastorAction(meeting, "cancel")}
+                        disabled={isActionLoading}
                         className="rounded-md border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50"
                       >
-                        Cancel Meeting
-                      </a>
+                        {isActionLoading ? "Updating..." : "Cancel Meeting"}
+                      </button>
                     </div>
                   )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { enterChildMode } from "../utils/childMode";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -254,6 +255,11 @@ export default function MyChildren() {
     setView("edit");
   };
 
+  const startChildMode = (child) => {
+    enterChildMode(child._id);
+    navigate(`/child-mode/${child._id}`);
+  };
+
   const backToList = () => {
     setView("list");
     setSelected(null);
@@ -379,6 +385,12 @@ export default function MyChildren() {
                   </div>
                   <div className="flex gap-2">
                     <button
+                      onClick={() => startChildMode(child)}
+                      className="px-3 py-1 text-sm border rounded text-green-700 hover:bg-green-50"
+                    >
+                      Child Mode
+                    </button>
+                    <button
                       onClick={() => openView(child)}
                       className="px-3 py-1 text-sm border rounded text-[#15436b] hover:bg-gray-50"
                     >
@@ -491,6 +503,9 @@ export default function MyChildren() {
             </dl>
 
             <div className="mt-6 flex gap-3">
+              <button onClick={() => startChildMode(selected)} className="px-4 py-2 border rounded text-green-700 text-sm">
+                Start Child Mode
+              </button>
               <button onClick={() => openEdit(selected)} className="px-4 py-2 bg-[#15436b] text-white rounded text-sm">
                 Edit
               </button>

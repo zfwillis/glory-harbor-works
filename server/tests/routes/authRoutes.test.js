@@ -42,4 +42,12 @@ describe("Auth Routes", () => {
     expect(route).toBeDefined();
     expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
   });
+
+  it("should register POST /verify-password with auth middleware", () => {
+    const routes = getRoutes();
+    const route = routes.find((item) => item.path === "/verify-password" && item.methods.post);
+
+    expect(route).toBeDefined();
+    expect(route.middlewareCount).toBeGreaterThanOrEqual(2);
+  });
 });
