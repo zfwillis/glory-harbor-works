@@ -46,6 +46,7 @@ describe("User Model", () => {
       expect(user.lastName).toBe("Doe");
       expect(user.role).toBe("member");
       expect(user.status).toBe("active");
+      expect(user.pendingRole).toBe("");
       expect(user.avatarUrl).toBe("");
       expect(Array.isArray(user.managesUserIds)).toBe(true);
       expect(Array.isArray(user.availability)).toBe(true);

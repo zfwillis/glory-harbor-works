@@ -11,7 +11,8 @@ import {
   deleteUser,
   getUsersByRole,
   getUserByEmail,
-  changeUserRole
+  changeUserRole,
+  respondToRoleChange
 } from "../controllers/userController.js";
 import { uploadUserAvatar } from "../middleware/upload.js";
 
@@ -31,10 +32,11 @@ router.get("/:id", authMiddleware, getUserById); // Get user by ID
 
 router.put("/:id", authMiddleware, updateUser); // Update user (owner or pastor)
 router.patch("/:id/password", authMiddleware, updatePassword); // Update current user's password
+router.patch("/me/role-change", authMiddleware, respondToRoleChange); // Accept or decline pending role change
 router.patch("/:id/role", authMiddleware, authorize("admin"), changeUserRole); // Change user role (admin only)
 router.patch("/:id/avatar", authMiddleware, uploadUserAvatar.single("image"), updateUserAvatar); // Upload profile picture
 router.delete("/:id/avatar", authMiddleware, deleteUserAvatar); // Remove profile picture
 
-router.delete("/:id", authMiddleware, deleteUser); // Delete user (owner or pastor)
+router.delete("/:id", authMiddleware, authorize("admin"), deleteUser); // Deactivate user (admin only)
 
 export default router;

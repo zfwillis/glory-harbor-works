@@ -100,7 +100,18 @@ export const registerUser = async (req, res) => {
  */
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find()
+    const requestedStatus = String(req.query?.status || "active").trim().toLowerCase();
+    const validStatuses = ["active", "inactive", "all"];
+
+    if (!validStatuses.includes(requestedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status filter. Must be active, inactive, or all"
+      });
+    }
+
+    const query = requestedStatus === "all" ? {} : { status: requestedStatus };
+    const users = await User.find(query)
       .select("-managesUserIds") // Exclude for now
       .lean();
 
@@ -312,14 +323,14 @@ export const updatePassword = async (req, res) => {
 };
 
 /**
- * Delete user account
+ * Deactivate user account
  * DELETE /api/users/:id
  */
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Authorization: only the owner, admin, leader, or pastor can delete
+    // Authorization: only the owner, admin, leader, or pastor can deactivate
     const requesterId = req.userId;
     if (!requesterId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -331,9 +342,13 @@ export const deleteUser = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permissions' });
     }
 
-    const deletedUser = await User.findByIdAndDelete(id);
+    const deactivatedUser = await User.findByIdAndUpdate(
+      id,
+      { status: "inactive" },
+      { returnDocument: "after", runValidators: true }
+    );
 
-    if (!deletedUser) {
+    if (!deactivatedUser) {
       return res.status(404).json({
         success: false,
         message: "User not found"
@@ -342,14 +357,14 @@ export const deleteUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "User deleted successfully",
-      user: deletedUser
+      message: "User deactivated successfully",
+      user: deactivatedUser
     });
   } catch (error) {
-    console.error("Delete user error:", error);
+    console.error("Deactivate user error:", error);
     res.status(500).json({
       success: false,
-      message: "Error deleting user",
+      message: "Error deactivating user",
       error: error.message
     });
   }
@@ -544,29 +559,96 @@ export const changeUserRole = async (req, res) => {
       });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { role },
-      { returnDocument: 'after', runValidators: true }
-    );
+    const targetUser = await User.findById(id);
 
-    if (!updatedUser) {
+    if (!targetUser) {
       return res.status(404).json({
         success: false,
         message: "User not found"
       });
     }
 
+    const requiresAcceptance = ["admin", "pastor"].includes(role) && targetUser.role !== role;
+    if (requiresAcceptance) {
+      targetUser.pendingRole = role;
+      targetUser.pendingRoleRequestedAt = new Date();
+      targetUser.pendingRoleRequestedBy = req.userId;
+      await targetUser.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Role change request sent. The user must accept before the role changes.",
+        user: targetUser
+      });
+    }
+
+    targetUser.role = role;
+    targetUser.pendingRole = "";
+    targetUser.pendingRoleRequestedAt = undefined;
+    targetUser.pendingRoleRequestedBy = undefined;
+    await targetUser.save();
+
     res.status(200).json({
       success: true,
       message: "User role updated successfully",
-      user: updatedUser
+      user: targetUser
     });
   } catch (error) {
     console.error("Change role error:", error);
     res.status(500).json({
       success: false,
       message: "Error changing user role",
+      error: error.message
+    });
+  }
+};
+
+export const respondToRoleChange = async (req, res) => {
+  try {
+    const { action } = req.body;
+
+    if (!["accept", "decline"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action must be accept or decline"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    if (!user.pendingRole) {
+      return res.status(400).json({
+        success: false,
+        message: "No pending role change to respond to"
+      });
+    }
+
+    const acceptedRole = user.pendingRole;
+    if (action === "accept") {
+      user.role = acceptedRole;
+    }
+
+    user.pendingRole = "";
+    user.pendingRoleRequestedAt = undefined;
+    user.pendingRoleRequestedBy = undefined;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: action === "accept" ? `Role updated to ${acceptedRole}.` : "Role change declined.",
+      user
+    });
+  } catch (error) {
+    console.error("Respond to role change error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error responding to role change",
       error: error.message
     });
   }

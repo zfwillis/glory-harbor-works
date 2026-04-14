@@ -58,6 +58,8 @@ export const register = async (req, res) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         status: user.status,
+        pendingRole: user.pendingRole,
+        pendingRoleRequestedAt: user.pendingRoleRequestedAt,
         availability: user.availability,
       },
     });
@@ -103,6 +105,8 @@ export const login = async (req, res) => {
         role: user.role,
         avatarUrl: user.avatarUrl,
         status: user.status,
+        pendingRole: user.pendingRole,
+        pendingRoleRequestedAt: user.pendingRoleRequestedAt,
         availability: user.availability,
       },
     });

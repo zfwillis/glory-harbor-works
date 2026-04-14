@@ -17,6 +17,13 @@ const userSchema = new mongoose.Schema(
     },
 
     status: { type: String, enum: ["active", "inactive"], default: "active" },
+    pendingRole: {
+      type: String,
+      enum: ["member", "leader", "admin", "pastor", "teacher", "prayer_team", ""],
+      default: "",
+    },
+    pendingRoleRequestedAt: { type: Date },
+    pendingRoleRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     // optional role-specific fields 
     managesUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

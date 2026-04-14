@@ -33,23 +33,26 @@ const roleBadgeColor = (role) => {
 export default function AdminDash() {
   const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
+  const [inactiveUsers, setInactiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [inactiveLoading, setInactiveLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
 
   // pendingRoles: { [userId]: selectedRole }
   const [pendingRoles, setPendingRoles] = useState({});
 
-  // deleteConfirm: userId to confirm, or null
+  // deleteConfirm: userId to deactivate, or null
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/users`, {
+      const res = await fetch(`${API_URL}/users?status=active`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -65,6 +68,35 @@ export default function AdminDash() {
   useEffect(() => {
     fetchUsers();
   }, [token]);
+
+  const fetchInactiveUsers = async () => {
+    try {
+      setInactiveLoading(true);
+      const res = await fetch(`${API_URL}/users?status=inactive`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to load deactivated accounts");
+      setInactiveUsers(data.users || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInactiveLoading(false);
+    }
+  };
+
+  const handleInactiveToggle = async () => {
+    setShowInactive((current) => {
+      const next = !current;
+      if (next) {
+        fetchInactiveUsers();
+      }
+      return next;
+    });
+    setMessage("");
+    setError("");
+    setDeleteConfirm(null);
+  };
 
   const handleRoleSelect = (userId, newRole) => {
     setPendingRoles((prev) => ({ ...prev, [userId]: newRole }));
@@ -88,14 +120,14 @@ export default function AdminDash() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to update role");
       setUsers((prev) =>
-        prev.map((u) => (u._id === userId ? { ...u, role: newRole } : u))
+        prev.map((u) => (u._id === userId ? { ...u, ...(data.user || {}), role: data.user?.role || u.role } : u))
       );
       setPendingRoles((prev) => {
         const next = { ...prev };
         delete next[userId];
         return next;
       });
-      setMessage(`Role updated to "${roleLabel(newRole)}" for ${data.user?.firstName || "user"}.`);
+      setMessage(data.message || `Role updated to "${roleLabel(newRole)}" for ${data.user?.firstName || "user"}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -111,7 +143,7 @@ export default function AdminDash() {
     });
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeactivateConfirm = async () => {
     const userId = deleteConfirm;
     if (!userId) return;
     setDeleteConfirm(null);
@@ -124,10 +156,13 @@ export default function AdminDash() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to delete user");
-      const deleted = users.find((u) => u._id === userId);
+      if (!res.ok) throw new Error(data.message || "Failed to deactivate user");
+      const deactivated = users.find((u) => u._id === userId);
       setUsers((prev) => prev.filter((u) => u._id !== userId));
-      setMessage(`Account for ${deleted?.firstName || "user"} ${deleted?.lastName || ""} deleted.`);
+      if (showInactive) {
+        setInactiveUsers((prev) => [{ ...deactivated, status: "inactive" }, ...prev].filter((u) => u?._id));
+      }
+      setMessage(`Account for ${deactivated?.firstName || "user"} ${deactivated?.lastName || ""} deactivated.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -135,8 +170,31 @@ export default function AdminDash() {
     }
   };
 
-  const filtered = users.filter((u) => {
+  const matchesSearch = (u) => {
     const q = search.toLowerCase();
+    const userStatus = String(u.status || "active").toLowerCase();
+
+    if (userStatus !== "active") {
+      return false;
+    }
+
+    return (
+      u.firstName?.toLowerCase().includes(q) ||
+      u.lastName?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.role?.toLowerCase().includes(q)
+    );
+  };
+
+  const filtered = users.filter(matchesSearch);
+  const inactiveFiltered = inactiveUsers.filter((u) => {
+    const q = search.toLowerCase();
+    const userStatus = String(u.status || "active").toLowerCase();
+
+    if (userStatus !== "inactive") {
+      return false;
+    }
+
     return (
       u.firstName?.toLowerCase().includes(q) ||
       u.lastName?.toLowerCase().includes(q) ||
@@ -154,7 +212,7 @@ export default function AdminDash() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#15436b]">Admin Dashboard</h1>
           <p className="text-gray-500 mt-1">
-            Manage user roles and accounts across the Glory Harbor community.
+            Manage user roles and deactivate accounts across the Glory Harbor community.
           </p>
         </div>
 
@@ -192,7 +250,7 @@ export default function AdminDash() {
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search by name, email, or role..."
+            placeholder="Search accounts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#15436b] focus:border-transparent"
@@ -201,10 +259,15 @@ export default function AdminDash() {
 
         {/* User Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="border-b border-gray-100 px-4 py-3">
+            <h2 className="text-lg font-semibold text-[#15436b]">Active Accounts</h2>
+          </div>
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading users...</div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No users found.</div>
+            <div className="p-8 text-center text-gray-500">
+              No active accounts found.
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-[#15436b] text-white">
@@ -219,7 +282,7 @@ export default function AdminDash() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((u) => {
-                  const isSelf = u._id === currentUser?._id;
+                  const isSelf = u._id === (currentUser?._id || currentUser?.id);
                   const pending = pendingRoles[u._id];
                   const hasPending = pending !== undefined && pending !== u.role;
                   const isUpdating = updatingId === u._id;
@@ -293,7 +356,7 @@ export default function AdminDash() {
                             disabled={isDeleting}
                             className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
                           >
-                            {isDeleting ? "Deleting…" : "Delete"}
+                            {isDeleting ? "Deactivating..." : "Deactivate Account"}
                           </button>
                         )}
                       </td>
@@ -305,21 +368,84 @@ export default function AdminDash() {
           )}
         </div>
 
+        <div className="mt-4 flex justify-start">
+          <button
+            type="button"
+            onClick={handleInactiveToggle}
+            className="rounded-lg border border-[#15436b] px-4 py-2 text-sm font-semibold text-[#15436b] hover:bg-[#eaf3fb]"
+          >
+            {showInactive ? "Hide Deactivated Accounts" : "View Deactivated Accounts"}
+          </button>
+        </div>
+
+        {showInactive && (
+          <div className="mt-6 bg-white rounded-lg shadow overflow-hidden">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <h2 className="text-lg font-semibold text-[#15436b]">Deactivated Accounts</h2>
+            </div>
+            {inactiveLoading ? (
+              <div className="p-8 text-center text-gray-500">Loading deactivated accounts...</div>
+            ) : inactiveFiltered.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">No deactivated accounts found.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-[#15436b] text-white">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Email</th>
+                    <th className="px-4 py-3 text-left">Role</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {inactiveFiltered.map((u) => (
+                    <tr key={u._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {u.firstName} {u.lastName}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${roleBadgeColor(u.role)}`}>
+                          {roleLabel(u.role)}
+                        </span>
+                        {u.pendingRole && (
+                          <span className="ml-2 inline-block rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-700">
+                            Pending {roleLabel(u.pendingRole)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-gray-400 italic">Deactivated</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Deactivate Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Delete Account</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Deactivate Account</h3>
             <p className="text-gray-600 mb-1">
-              Are you sure you want to delete the account for:
+              Are you sure you want to deactivate the account for:
             </p>
             <p className="font-semibold text-gray-800 mb-4">
               {deleteTarget?.firstName} {deleteTarget?.lastName}
               <span className="block text-sm font-normal text-gray-500">{deleteTarget?.email}</span>
             </p>
-            <p className="text-sm text-red-600 mb-5">This action cannot be undone.</p>
+            <p className="text-sm text-red-600 mb-5">This account will no longer be able to log in.</p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
@@ -328,10 +454,10 @@ export default function AdminDash() {
                 Cancel
               </button>
               <button
-                onClick={handleDeleteConfirm}
+                onClick={handleDeactivateConfirm}
                 className="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
               >
-                Yes, Delete
+                Yes, Deactivate
               </button>
             </div>
           </div>
@@ -340,3 +466,5 @@ export default function AdminDash() {
     </div>
   );
 }
+
+

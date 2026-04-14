@@ -32,6 +32,7 @@ const {
   getUsersByRole,
   getUserByEmail,
   changeUserRole,
+  respondToRoleChange,
 } = await import("../../controllers/userController.js");
 
 const createMockRes = () => {
@@ -293,11 +294,11 @@ describe("User Controller", () => {
       expect(res.body.message).toBe("Forbidden: insufficient permissions");
     });
 
-    it("deletes user when requester owns profile", async () => {
+    it("deactivates user when requester owns profile", async () => {
       MockUser.findById.mockReturnValue({
         select: jest.fn().mockResolvedValue({ role: "member" }),
       });
-      MockUser.findByIdAndDelete.mockResolvedValue({ _id: "same-id" });
+      MockUser.findByIdAndUpdate.mockResolvedValue({ _id: "same-id", status: "inactive" });
       const req = {
         params: { id: "same-id" },
         userId: "same-id",
@@ -306,15 +307,20 @@ describe("User Controller", () => {
 
       await deleteUser(req, res);
 
+      expect(MockUser.findByIdAndUpdate).toHaveBeenCalledWith(
+        "same-id",
+        { status: "inactive" },
+        { returnDocument: "after", runValidators: true }
+      );
       expect(res.statusCode).toBe(200);
-      expect(res.body.message).toBe("User deleted successfully");
+      expect(res.body.message).toBe("User deactivated successfully");
     });
 
     it("returns 404 when target user does not exist", async () => {
       MockUser.findById.mockReturnValue({
         select: jest.fn().mockResolvedValue({ role: "pastor" }),
       });
-      MockUser.findByIdAndDelete.mockResolvedValue(null);
+      MockUser.findByIdAndUpdate.mockResolvedValue(null);
       const req = {
         params: { id: "missing-id" },
         userId: "pastor-id",
@@ -689,7 +695,7 @@ describe("User Controller", () => {
     });
 
     it("returns 404 when user is missing during role change", async () => {
-      MockUser.findByIdAndUpdate.mockResolvedValue(null);
+      MockUser.findById.mockResolvedValue(null);
       const req = { params: { id: "missing" }, body: { role: "pastor" } };
       const res = createMockRes();
 
@@ -699,19 +705,91 @@ describe("User Controller", () => {
       expect(res.body.message).toBe("User not found");
     });
 
-    it("updates role successfully for valid role", async () => {
-      MockUser.findByIdAndUpdate.mockResolvedValue({
+    it("creates pending request for admin or pastor role", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
         _id: "u1",
-        role: "pastor",
+        role: "member",
+        save,
       });
-      const req = { params: { id: "u1" }, body: { role: "pastor" } };
+      const req = { params: { id: "u1" }, userId: "admin-id", body: { role: "pastor" } };
+      const res = createMockRes();
+
+      await changeUserRole(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.message).toContain("must accept");
+      expect(res.body.user.role).toBe("member");
+      expect(res.body.user.pendingRole).toBe("pastor");
+      expect(save).toHaveBeenCalled();
+    });
+
+    it("updates role immediately for non-elevated role", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        role: "member",
+        pendingRole: "admin",
+        save,
+      });
+      const req = { params: { id: "u1" }, body: { role: "teacher" } };
       const res = createMockRes();
 
       await changeUserRole(req, res);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.message).toBe("User role updated successfully");
+      expect(res.body.user.role).toBe("teacher");
+      expect(res.body.user.pendingRole).toBe("");
+    });
+  });
+
+  describe("respondToRoleChange", () => {
+    it("returns 400 for invalid action", async () => {
+      const req = { userId: "u1", body: { action: "maybe" } };
+      const res = createMockRes();
+
+      await respondToRoleChange(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe("Action must be accept or decline");
+    });
+
+    it("accepts pending role change", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        role: "member",
+        pendingRole: "pastor",
+        save,
+      });
+      const req = { userId: "u1", body: { action: "accept" } };
+      const res = createMockRes();
+
+      await respondToRoleChange(req, res);
+
+      expect(res.statusCode).toBe(200);
       expect(res.body.user.role).toBe("pastor");
+      expect(res.body.user.pendingRole).toBe("");
+      expect(save).toHaveBeenCalled();
+    });
+
+    it("declines pending role change without changing role", async () => {
+      const save = jest.fn().mockResolvedValue(undefined);
+      MockUser.findById.mockResolvedValue({
+        _id: "u1",
+        role: "member",
+        pendingRole: "admin",
+        save,
+      });
+      const req = { userId: "u1", body: { action: "decline" } };
+      const res = createMockRes();
+
+      await respondToRoleChange(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.user.role).toBe("member");
+      expect(res.body.user.pendingRole).toBe("");
     });
   });
 });

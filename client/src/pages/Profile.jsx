@@ -320,6 +320,37 @@ export default function Profile() {
     }
   };
 
+  const handleRoleChangeResponse = async (action) => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const res = await fetch(`${API_URL}/users/me/role-change`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Could not update role request.");
+      }
+
+      if (setUser) {
+        setUser(data.user || user);
+      }
+      setMessage(data.message || (action === "accept" ? "New position accepted." : "Position declined."));
+    } catch (err) {
+      setError(err.message || "Could not update role request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (authLoading) return <div className="p-8">Checking authentication...</div>;
 
   if (!user) {
@@ -348,6 +379,33 @@ export default function Profile() {
 
         {message && <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">{message}</div>}
         {error && <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>}
+
+        {user.pendingRole && (
+          <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+            <h2 className="text-lg font-semibold text-yellow-900">New Position Request</h2>
+            <p className="mt-2 text-sm text-yellow-800">
+              An admin invited you to become a {user.pendingRole.replace("_", " ")}. Your current role will not change unless you accept.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => handleRoleChangeResponse("accept")}
+                disabled={loading}
+                className="rounded bg-[#15436b] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Accept Position
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRoleChangeResponse("decline")}
+                disabled={loading}
+                className="rounded border border-yellow-700 px-4 py-2 text-sm font-semibold text-yellow-800 disabled:opacity-50"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6 p-4 border rounded-lg bg-white">
           <div className="flex flex-col items-center gap-4">

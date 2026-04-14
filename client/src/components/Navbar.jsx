@@ -18,7 +18,7 @@ const Navbar = () => {
     setOpen(false);
   };
 
-  const canOpenAdminDash = normalizedRole === "admin" || normalizedRole === "leader";
+  const canOpenAdminDash = normalizedRole === "admin";
   const canOpenTeacherDash =
     normalizedRole === "teacher" ||
     normalizedRole === "leader";

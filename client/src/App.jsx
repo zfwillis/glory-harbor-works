@@ -58,7 +58,7 @@ function AppShell() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoute roles={["admin", "leader"]}>
+                <ProtectedRoute roles={["admin"]}>
                   <AdminDash />
                 </ProtectedRoute>
               }
