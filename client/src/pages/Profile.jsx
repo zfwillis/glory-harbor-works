@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -336,7 +336,15 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-bold mb-4">My Profile</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">My Profile</h1>
+          <Link
+            to="/my-children"
+            className="px-4 py-2 bg-[#15436b] text-white rounded text-sm font-medium hover:bg-[#1a5482] transition-colors"
+          >
+            My Children
+          </Link>
+        </div>
 
         {message && <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">{message}</div>}
         {error && <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>}
