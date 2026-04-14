@@ -12,6 +12,7 @@ import prayerRoutes from "../routes/prayerRoutes.js";
 import { getDatabaseHealth } from "./db.js";
 import calendlyRoutes from "../routes/calendlyRoutes.js";
 import meetingRoutes from "../routes/meetingRoutes.js";
+import childRoutes from "../routes/childRoutes.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -57,6 +58,7 @@ app.use("/api/sermons", sermonRoutes);
 app.use("/api/prayers", prayerRoutes);
 app.use("/api/calendly", calendlyRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/children", childRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
