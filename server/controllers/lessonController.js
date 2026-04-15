@@ -188,6 +188,171 @@ export const getChildProgress = async (req, res) => {
   }
 };
 
+// ── Teacher endpoints ──────────────────────────────────────────────────────
+
+export const getTeacherLessons = async (req, res) => {
+  try {
+    await ensureStarterLessons();
+    const lessons = await Lesson.find().sort({ weekOf: -1, title: 1 }).lean();
+    return res.json({ count: lessons.length, lessons });
+  } catch (error) {
+    console.error("getTeacherLessons error:", error);
+    return res.status(500).json({ message: "Unable to load lessons.", error: error.message });
+  }
+};
+
+export const createLesson = async (req, res) => {
+  try {
+    const { slug, title, weekOf, bibleVerse, memoryVerse, summary, content, quizQuestions, isPublished } = req.body;
+
+    if (!title || !weekOf || !bibleVerse || !memoryVerse || !summary || !content) {
+      return res.status(400).json({ message: "Title, week of, Bible verse, memory verse, summary, and content are required." });
+    }
+
+    const weekOfDate = new Date(weekOf);
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    if (weekOfDate < todayStart) {
+      return res.status(400).json({ message: "Week of date cannot be in the past." });
+    }
+
+    const autoSlug =
+      slug ||
+      `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${new Date(weekOf).toISOString().slice(0, 10)}`;
+
+    const lesson = await Lesson.create({
+      slug: autoSlug,
+      title,
+      weekOf,
+      bibleVerse,
+      memoryVerse,
+      summary,
+      content,
+      quizQuestions: (quizQuestions || []).filter((q) => q.prompt && q.options?.length >= 2),
+      isPublished: isPublished !== false,
+    });
+
+    return res.status(201).json({ message: "Lesson created.", lesson });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "A lesson with that slug already exists. Try a different title or week." });
+    }
+    console.error("createLesson error:", error);
+    return res.status(500).json({ message: "Unable to create lesson.", error: error.message });
+  }
+};
+
+export const updateLesson = async (req, res) => {
+  try {
+    const lesson = await Lesson.findById(req.params.id);
+    if (!lesson) {
+      return res.status(404).json({ message: "Lesson not found." });
+    }
+
+    if (req.body.weekOf !== undefined) {
+      const weekOfDate = new Date(req.body.weekOf);
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      if (weekOfDate < todayStart) {
+        return res.status(400).json({ message: "Week of date cannot be in the past." });
+      }
+    }
+
+    const allowed = ["slug", "title", "weekOf", "bibleVerse", "memoryVerse", "summary", "content", "isPublished"];
+    allowed.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        lesson[field] = req.body[field];
+      }
+    });
+
+    if (req.body.quizQuestions !== undefined) {
+      lesson.quizQuestions = (req.body.quizQuestions || []).filter((q) => q.prompt && q.options?.length >= 2);
+    }
+
+    await lesson.save();
+    return res.json({ message: "Lesson updated.", lesson });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "A lesson with that slug already exists. Try a different title or week." });
+    }
+    console.error("updateLesson error:", error);
+    return res.status(500).json({ message: "Unable to update lesson.", error: error.message });
+  }
+};
+
+export const deleteLesson = async (req, res) => {
+  try {
+    const lesson = await Lesson.findByIdAndDelete(req.params.id);
+    if (!lesson) {
+      return res.status(404).json({ message: "Lesson not found." });
+    }
+    await ChildLessonProgress.deleteMany({ lesson: req.params.id });
+    return res.json({ message: "Lesson deleted." });
+  } catch (error) {
+    console.error("deleteLesson error:", error);
+    return res.status(500).json({ message: "Unable to delete lesson.", error: error.message });
+  }
+};
+
+export const getAllChildrenProgress = async (req, res) => {
+  try {
+    await ensureStarterLessons();
+
+    const [allChildren, lessons, progressRecords] = await Promise.all([
+      Child.find()
+        .populate("parent", "firstName lastName email")
+        .populate("secondParent", "firstName lastName email")
+        .lean(),
+      Lesson.find().sort({ weekOf: -1, title: 1 }).lean(),
+      ChildLessonProgress.find().lean(),
+    ]);
+
+    const progressByChild = new Map();
+    progressRecords.forEach((record) => {
+      const childId = String(record.child);
+      if (!progressByChild.has(childId)) progressByChild.set(childId, new Map());
+      progressByChild.get(childId).set(String(record.lesson), record);
+    });
+
+    const children = allChildren.map((child) => {
+      const childProgress = progressByChild.get(String(child._id)) || new Map();
+      const lessonProgress = lessons.map((lesson) => {
+        const record = childProgress.get(String(lesson._id));
+        return {
+          lesson: { _id: lesson._id, title: lesson.title, weekOf: lesson.weekOf },
+          completed: record?.completed || false,
+          quizScore: record?.quizScore || 0,
+          totalQuestions: record?.totalQuestions || 0,
+          completedAt: record?.completedAt || null,
+        };
+      });
+
+      const completedRecords = Array.from(childProgress.values()).filter((r) => r.completed);
+      return {
+        _id: child._id,
+        firstName: child.firstName,
+        lastName: child.lastName,
+        parent: child.parent,
+        secondParent: child.secondParentStatus === "accepted" ? child.secondParent : null,
+        summary: {
+          completedCount: completedRecords.length,
+          totalLessons: lessons.length,
+          totalScore: completedRecords.reduce((sum, r) => sum + (r.quizScore || 0), 0),
+          totalQuestions: completedRecords.reduce((sum, r) => sum + (r.totalQuestions || 0), 0),
+        },
+        lessons: lessonProgress,
+      };
+    });
+
+    return res.json({ children, lessons: lessons.map((l) => ({ _id: l._id, title: l.title, weekOf: l.weekOf })) });
+  } catch (error) {
+    console.error("getAllChildrenProgress error:", error);
+    return res.status(500).json({ message: "Unable to load progress data.", error: error.message });
+  }
+};
+
+// ── Parent endpoints ───────────────────────────────────────────────────────
+
 export const submitLessonQuiz = async (req, res) => {
   try {
     const { child, error } = await findAuthorizedChild(req.params.childId, req.userId);
