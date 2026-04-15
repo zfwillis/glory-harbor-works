@@ -70,6 +70,9 @@ export default function Profile() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -80,6 +83,30 @@ export default function Profile() {
       });
     }
   }, [user]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!token) return;
+
+    setNotificationsLoading(true);
+    setNotificationsError("");
+
+    try {
+      const res = await fetch(`${API_URL}/notifications/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not load notifications.");
+      setNotifications(data.notifications || []);
+    } catch (err) {
+      setNotificationsError(err.message || "Could not load notifications.");
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -351,6 +378,50 @@ export default function Profile() {
     }
   };
 
+  const handleMarkNotificationRead = async (notificationId) => {
+    try {
+      const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Could not update notification.");
+      }
+
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification._id === notificationId ? { ...notification, read: true } : notification
+        )
+      );
+    } catch (err) {
+      setNotificationsError(err.message || "Could not update notification.");
+    }
+  };
+
+  const handleEnableBrowserNotifications = async () => {
+    if (!("Notification" in window)) {
+      setNotificationsError("This browser does not support push notifications.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      setMessage("Push notifications enabled.");
+      setNotificationsError("");
+    } else {
+      setNotificationsError("Push notifications were not enabled.");
+    }
+  };
+
+  const formatNotificationDate = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  };
+
   if (authLoading) return <div className="p-8">Checking authentication...</div>;
 
   if (!user) {
@@ -366,7 +437,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
+      <div className="mx-auto max-w-6xl rounded-lg bg-white p-8 shadow">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">My Profile</h1>
           <Link
@@ -380,6 +451,8 @@ export default function Profile() {
         {message && <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">{message}</div>}
         {error && <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>}
 
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0">
         {user.pendingRole && (
           <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
             <h2 className="text-lg font-semibold text-yellow-900">New Position Request</h2>
@@ -535,6 +608,78 @@ export default function Profile() {
               {loading ? "Updating..." : "Update Password"}
             </button>
           </form>
+        </div>
+          </div>
+
+          <aside id="notifications" className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 lg:sticky lg:top-24 lg:self-start">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+                <p className="text-sm text-gray-500">Announcements and updates from church staff.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={fetchNotifications}
+                  disabled={notificationsLoading}
+                  className="rounded border border-[#15436b] px-3 py-1 text-sm font-semibold text-[#15436b] disabled:opacity-50"
+                >
+                  Refresh
+                </button>
+                {"Notification" in window && Notification.permission !== "granted" && (
+                  <button
+                    type="button"
+                    onClick={handleEnableBrowserNotifications}
+                    className="rounded bg-[#15436b] px-3 py-1 text-sm font-semibold text-white"
+                  >
+                    Enable Push
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {notificationsError && (
+              <div className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{notificationsError}</div>
+            )}
+
+            {notificationsLoading ? (
+              <p className="mt-4 text-sm text-gray-500">Loading notifications...</p>
+            ) : notifications.length === 0 ? (
+              <p className="mt-4 text-sm text-gray-500">No notifications yet.</p>
+            ) : (
+              <div className="mt-4 max-h-[34rem] space-y-3 overflow-y-auto pr-1">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`rounded-lg border p-3 ${
+                      notification.read ? "border-gray-200 bg-gray-50" : "border-[#15436b] bg-[#eef6fc]"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {notification.title || "Announcement"}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-700">{notification.message}</p>
+                        <p className="mt-2 text-xs text-gray-500">
+                          {formatNotificationDate(notification.timeSent || notification.createdAt)}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkNotificationRead(notification._id)}
+                          className="rounded bg-[#15436b] px-3 py-1 text-xs font-semibold text-white"
+                        >
+                          Mark Read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </aside>
         </div>
       </div>
     </div>

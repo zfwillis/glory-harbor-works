@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import User from "../models/User.js";
+import { safelyCreateActiveMemberNotifications } from "../services/notificationService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -274,6 +275,13 @@ export const createSermon = async (req, res) => {
       publishedAt: publishedAt || Date.now(),
       likesCount: 0,
       likedBy: [],
+    });
+
+    await safelyCreateActiveMemberNotifications({
+      type: "sermon",
+      title: "New Sermon Posted",
+      message: `${createdSermon.title} by ${createdSermon.speaker} is now available.`,
+      contact: "Sermons",
     });
 
     return res.status(201).json({

@@ -1,6 +1,7 @@
 import Child from "../models/Child.js";
 import Lesson from "../models/Lesson.js";
 import ChildLessonProgress from "../models/ChildLessonProgress.js";
+import { safelyCreateActiveMemberNotifications } from "../services/notificationService.js";
 
 const starterLessons = [
   {
@@ -231,6 +232,15 @@ export const createLesson = async (req, res) => {
       quizQuestions: (quizQuestions || []).filter((q) => q.prompt && q.options?.length >= 2),
       isPublished: isPublished !== false,
     });
+
+    if (lesson.isPublished) {
+      await safelyCreateActiveMemberNotifications({
+        type: "lesson",
+        title: "New Children's Lesson",
+        message: `${lesson.title} is ready for this week's children's lesson.`,
+        contact: "Children's Ministry",
+      });
+    }
 
     return res.status(201).json({ message: "Lesson created.", lesson });
   } catch (error) {

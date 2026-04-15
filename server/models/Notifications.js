@@ -9,8 +9,13 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["meeting", "prayer", "contact", "system"],
+      enum: ["announcement", "sermon", "lesson", "meeting", "prayer", "contact", "system"],
       default: "system",
+    },
+    title: {
+      type: String,
+      trim: true,
+      default: "",
     },
     contact: {
       type: String,
@@ -33,5 +38,7 @@ const notificationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+notificationSchema.index({ timeSent: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
 export default mongoose.model("Notification", notificationSchema);

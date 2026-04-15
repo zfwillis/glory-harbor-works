@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Meeting from "../models/Meeting.js";
 import User from "../models/User.js";
+import { safelyCreateUserNotification } from "../services/notificationService.js";
 
 const ACTIVE_MEETING_STATUSES = ["pending", "approved"];
 
@@ -160,6 +161,14 @@ export const createMeeting = async (req, res) => {
     const populated = await Meeting.findById(meeting._id)
       .populate("memberId", "firstName lastName email")
       .populate("pastorId", "firstName lastName email");
+
+    await safelyCreateUserNotification({
+      userId: requester._id,
+      type: "meeting",
+      title: "Meeting Requested",
+      message: `Your meeting request for ${scheduleDate.toLocaleString()} was submitted.`,
+      contact: "Pastoral Meetings",
+    });
 
     return res.status(201).json({
       message: "Meeting created successfully.",
@@ -398,6 +407,14 @@ export const approveOrDeclineMeeting = async (req, res) => {
     meeting.status = status;
     await meeting.save();
 
+    await safelyCreateUserNotification({
+      userId: meeting.memberId,
+      type: "meeting",
+      title: `Meeting ${status}`,
+      message: `Your pastoral meeting request was ${status}.`,
+      contact: "Pastoral Meetings",
+    });
+
     const populated = await Meeting.findById(id)
       .populate("memberId", "firstName lastName email")
       .populate("pastorId", "firstName lastName email");
@@ -432,6 +449,14 @@ export const cancelMeeting = async (req, res) => {
 
     meeting.status = "cancelled";
     await meeting.save();
+
+    await safelyCreateUserNotification({
+      userId: meeting.memberId,
+      type: "meeting",
+      title: "Meeting Cancelled",
+      message: "Your pastoral meeting was cancelled.",
+      contact: "Pastoral Meetings",
+    });
 
     return res.status(200).json({ message: "Meeting cancelled." });
   } catch (error) {
@@ -553,6 +578,16 @@ export const runMeetingReminders = async (req, res) => {
       meeting.reminderSentAt = new Date();
       meeting.reminderMeta = "Reminder dispatched by system";
       await meeting.save();
+
+      if (meeting.memberId?._id) {
+        await safelyCreateUserNotification({
+          userId: meeting.memberId._id,
+          type: "meeting",
+          title: "Meeting Reminder",
+          message: `You have a pastoral meeting scheduled for ${new Date(meeting.scheduledFor).toLocaleString()}.`,
+          contact: "Pastoral Meetings",
+        });
+      }
 
       sent.push({
         meetingId: meeting._id,

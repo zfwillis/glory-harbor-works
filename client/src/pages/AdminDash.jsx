@@ -42,6 +42,8 @@ export default function AdminDash() {
   const [deletingId, setDeletingId] = useState(null);
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [announcement, setAnnouncement] = useState({ title: "", message: "" });
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
 
   // pendingRoles: { [userId]: selectedRole }
   const [pendingRoles, setPendingRoles] = useState({});
@@ -96,6 +98,50 @@ export default function AdminDash() {
     setMessage("");
     setError("");
     setDeleteConfirm(null);
+  };
+
+  const handleAnnouncementChange = (event) => {
+    const { name, value } = event.target;
+    setAnnouncement((prev) => ({ ...prev, [name]: value }));
+    setMessage("");
+    setError("");
+  };
+
+  const handleSendAnnouncement = async (event) => {
+    event.preventDefault();
+    const announcementMessage = announcement.message.trim();
+
+    if (!announcementMessage) {
+      setError("Announcement message is required.");
+      setMessage("");
+      return;
+    }
+
+    setSendingAnnouncement(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const res = await fetch(`${API_URL}/notifications/announcements`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: announcement.title,
+          message: announcementMessage,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to send announcement");
+      setAnnouncement({ title: "", message: "" });
+      setMessage(data.message || "Announcement sent.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSendingAnnouncement(false);
+    }
   };
 
   const handleRoleSelect = (userId, newRole) => {
@@ -217,6 +263,42 @@ export default function AdminDash() {
         </div>
 
         <DashboardSwitcher />
+
+        <section className="mb-8 rounded-lg border border-gray-100 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-[#15436b]">Send Announcement</h2>
+          <p className="mt-1 text-sm text-gray-500">Send a notification to all active member accounts.</p>
+          <form onSubmit={handleSendAnnouncement} className="mt-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
+              <input
+                type="text"
+                name="title"
+                value={announcement.title}
+                onChange={handleAnnouncementChange}
+                placeholder="Announcement"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#15436b]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Message</label>
+              <textarea
+                name="message"
+                value={announcement.message}
+                onChange={handleAnnouncementChange}
+                rows={4}
+                placeholder="Write the announcement members should see..."
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#15436b]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={sendingAnnouncement}
+              className="rounded-lg bg-[#15436b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f2f4d] disabled:opacity-50"
+            >
+              {sendingAnnouncement ? "Sending..." : "Send Announcement"}
+            </button>
+          </form>
+        </section>
 
         {/* Stats bar */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">

@@ -21,6 +21,7 @@ import ContactSubmissions from './pages/ContactSubmissions'
 import MyChildren from './pages/MyChildren'
 import ChildMode from './pages/ChildMode'
 import ChildModeLock from './components/ChildModeLock'
+import PushNotifications from './components/PushNotifications'
 import { useLocation } from 'react-router-dom'
 
 function AppShell() {
@@ -30,6 +31,7 @@ function AppShell() {
   return (
     <ChildModeLock>
       <div className="flex flex-col min-h-screen">
+        <PushNotifications />
         {!isChildModeRoute && <Navbar />}
         <main className="flex-grow">
           <Routes>

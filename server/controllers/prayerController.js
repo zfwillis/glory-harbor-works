@@ -1,5 +1,6 @@
 import Prayer from "../models/Prayer.js";
 import mongoose from "mongoose";
+import { safelyCreateUserNotification } from "../services/notificationService.js";
 
 export const getPrayerRequests = async (req, res) => {
   try {
@@ -177,6 +178,17 @@ export const updatePrayerStatus = async (req, res) => {
     const sanitizedPrayer = prayer.isAnonymous
       ? { ...prayer.toObject(), createdBy: null }
       : prayer;
+
+    const ownerId = prayer.createdBy?._id || prayer.createdBy;
+    if (ownerId) {
+      await safelyCreateUserNotification({
+        userId: ownerId,
+        type: "prayer",
+        title: "Prayer Request Updated",
+        message: `Your prayer request status is now ${status.replace("_", " ")}.`,
+        contact: "Prayer Team",
+      });
+    }
 
     return res.status(200).json({
       message: "Prayer status updated successfully",
