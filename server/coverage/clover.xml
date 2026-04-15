@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1776217963707" clover="3.2.0">
-  <project timestamp="1776217963707" name="All files">
-    <metrics statements="1664" coveredstatements="1437" conditionals="1178" coveredconditionals="966" methods="176" coveredmethods="158" elements="3018" coveredelements="2561" complexity="0" loc="1664" ncloc="1664" packages="3" files="23" classes="23"/>
+<coverage generated="1776218937561" clover="3.2.0">
+  <project timestamp="1776218937562" name="All files">
+    <metrics statements="1664" coveredstatements="1485" conditionals="1178" coveredconditionals="1011" methods="176" coveredmethods="165" elements="3018" coveredelements="2661" complexity="0" loc="1664" ncloc="1664" packages="3" files="23" classes="23"/>
     <package name="controllers">
       <metrics statements="1568" coveredstatements="1390" conditionals="1125" coveredconditionals="962" methods="164" coveredmethods="153"/>
       <file name="appointmentController.js" path="C:\Users\z4rai\OneDrive - Loyola University Maryland\CS 496\glory-harbor-works\server\controllers\appointmentController.js">
@@ -1604,84 +1604,84 @@
       </file>
     </package>
     <package name="middleware">
-      <metrics statements="72" coveredstatements="23" conditionals="51" coveredconditionals="2" methods="10" coveredmethods="3"/>
+      <metrics statements="72" coveredstatements="71" conditionals="51" coveredconditionals="47" methods="10" coveredmethods="10"/>
       <file name="auth.js" path="C:\Users\z4rai\OneDrive - Loyola University Maryland\CS 496\glory-harbor-works\server\middleware\auth.js">
-        <metrics statements="30" coveredstatements="9" conditionals="12" coveredconditionals="1" methods="4" coveredmethods="2"/>
+        <metrics statements="30" coveredstatements="30" conditionals="12" coveredconditionals="12" methods="4" coveredmethods="4"/>
         <line num="4" count="8" type="stmt"/>
-        <line num="5" count="1" type="stmt"/>
-        <line num="6" count="1" type="stmt"/>
-        <line num="8" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="5" count="3" type="stmt"/>
+        <line num="6" count="3" type="stmt"/>
+        <line num="8" count="3" type="cond" truecount="2" falsecount="0"/>
         <line num="9" count="1" type="stmt"/>
-        <line num="12" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="13" count="0" type="stmt"/>
-        <line num="14" count="0" type="stmt"/>
-        <line num="16" count="0" type="stmt"/>
+        <line num="12" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="13" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="16" count="1" type="stmt"/>
         <line num="20" count="8" type="stmt"/>
-        <line num="21" count="0" type="stmt"/>
-        <line num="22" count="0" type="stmt"/>
-        <line num="23" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="24" count="0" type="stmt"/>
-        <line num="27" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="28" count="0" type="stmt"/>
-        <line num="29" count="0" type="stmt"/>
-        <line num="31" count="0" type="stmt"/>
+        <line num="21" count="3" type="stmt"/>
+        <line num="22" count="3" type="stmt"/>
+        <line num="23" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="24" count="1" type="stmt"/>
+        <line num="27" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="28" count="1" type="stmt"/>
+        <line num="29" count="1" type="stmt"/>
+        <line num="31" count="1" type="stmt"/>
         <line num="36" count="8" type="stmt"/>
         <line num="39" count="8" type="stmt"/>
-        <line num="40" count="10" type="stmt"/>
-        <line num="41" count="0" type="stmt"/>
-        <line num="42" count="0" type="stmt"/>
-        <line num="44" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="45" count="0" type="stmt"/>
-        <line num="48" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="49" count="0" type="stmt"/>
-        <line num="54" count="0" type="stmt"/>
-        <line num="55" count="0" type="stmt"/>
-        <line num="57" count="0" type="stmt"/>
+        <line num="40" count="14" type="stmt"/>
+        <line num="41" count="4" type="stmt"/>
+        <line num="42" count="4" type="stmt"/>
+        <line num="44" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="45" count="1" type="stmt"/>
+        <line num="48" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="54" count="1" type="stmt"/>
+        <line num="55" count="1" type="stmt"/>
+        <line num="57" count="1" type="stmt"/>
       </file>
       <file name="upload.js" path="C:\Users\z4rai\OneDrive - Loyola University Maryland\CS 496\glory-harbor-works\server\middleware\upload.js">
-        <metrics statements="42" coveredstatements="14" conditionals="39" coveredconditionals="1" methods="6" coveredmethods="1"/>
-        <line num="6" count="2" type="stmt"/>
-        <line num="7" count="2" type="stmt"/>
-        <line num="9" count="2" type="stmt"/>
-        <line num="10" count="2" type="cond" truecount="1" falsecount="1"/>
-        <line num="11" count="0" type="stmt"/>
-        <line num="14" count="2" type="stmt"/>
-        <line num="15" count="6" type="stmt"/>
-        <line num="17" count="0" type="stmt"/>
-        <line num="20" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="21" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="22" count="0" type="stmt"/>
-        <line num="26" count="2" type="stmt"/>
-        <line num="27" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="28" count="0" type="stmt"/>
-        <line num="31" count="0" type="stmt"/>
-        <line num="34" count="2" type="stmt"/>
-        <line num="40" count="2" type="stmt"/>
-        <line num="47" count="2" type="cond" truecount="0" falsecount="1"/>
-        <line num="48" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="49" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="51" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="52" count="0" type="stmt"/>
-        <line num="55" count="0" type="cond" truecount="0" falsecount="4"/>
+        <metrics statements="42" coveredstatements="41" conditionals="39" coveredconditionals="35" methods="6" coveredmethods="6"/>
+        <line num="6" count="3" type="stmt"/>
+        <line num="7" count="3" type="stmt"/>
+        <line num="9" count="3" type="stmt"/>
+        <line num="10" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="11" count="1" type="stmt"/>
+        <line num="14" count="3" type="stmt"/>
+        <line num="15" count="9" type="stmt"/>
+        <line num="17" count="1" type="stmt"/>
+        <line num="20" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="21" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="2" type="stmt"/>
+        <line num="26" count="3" type="stmt"/>
+        <line num="27" count="3" type="cond" truecount="4" falsecount="0"/>
+        <line num="28" count="2" type="stmt"/>
+        <line num="31" count="1" type="stmt"/>
+        <line num="34" count="3" type="stmt"/>
+        <line num="40" count="3" type="stmt"/>
+        <line num="47" count="3" type="cond" truecount="0" falsecount="1"/>
+        <line num="48" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="49" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="51" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="52" count="2" type="stmt"/>
+        <line num="55" count="1" type="cond" truecount="3" falsecount="1"/>
         <line num="56" count="0" type="stmt"/>
-        <line num="59" count="0" type="stmt"/>
-        <line num="62" count="2" type="stmt"/>
-        <line num="63" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="64" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="65" count="0" type="stmt"/>
-        <line num="67" count="0" type="stmt"/>
-        <line num="70" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="71" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="72" count="0" type="stmt"/>
-        <line num="75" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="76" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="77" count="0" type="stmt"/>
-        <line num="80" count="0" type="stmt"/>
-        <line num="83" count="0" type="stmt"/>
-        <line num="86" count="0" type="stmt"/>
-        <line num="89" count="2" type="stmt"/>
-        <line num="97" count="2" type="stmt"/>
-        <line num="105" count="2" type="stmt"/>
+        <line num="59" count="1" type="stmt"/>
+        <line num="62" count="3" type="stmt"/>
+        <line num="63" count="8" type="cond" truecount="2" falsecount="0"/>
+        <line num="64" count="2" type="cond" truecount="4" falsecount="0"/>
+        <line num="65" count="1" type="stmt"/>
+        <line num="67" count="1" type="stmt"/>
+        <line num="70" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="71" count="5" type="cond" truecount="4" falsecount="0"/>
+        <line num="72" count="1" type="stmt"/>
+        <line num="75" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="76" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="77" count="2" type="stmt"/>
+        <line num="80" count="1" type="stmt"/>
+        <line num="83" count="1" type="stmt"/>
+        <line num="86" count="1" type="stmt"/>
+        <line num="89" count="3" type="stmt"/>
+        <line num="97" count="3" type="stmt"/>
+        <line num="105" count="3" type="stmt"/>
       </file>
     </package>
     <package name="models">
@@ -1736,11 +1736,11 @@
       </file>
       <file name="User.js" path="C:\Users\z4rai\OneDrive - Loyola University Maryland\CS 496\glory-harbor-works\server\models\User.js">
         <metrics statements="6" coveredstatements="6" conditionals="2" coveredconditionals="2" methods="2" coveredmethods="2"/>
-        <line num="4" count="10" type="stmt"/>
-        <line num="36" count="10" type="stmt"/>
+        <line num="4" count="9" type="stmt"/>
+        <line num="36" count="9" type="stmt"/>
         <line num="37" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="38" count="1" type="stmt"/>
-        <line num="42" count="10" type="stmt"/>
+        <line num="42" count="9" type="stmt"/>
         <line num="43" count="1" type="stmt"/>
       </file>
     </package>
